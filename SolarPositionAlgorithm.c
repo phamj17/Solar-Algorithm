@@ -1360,21 +1360,21 @@ int spa_calculate(spa_data *spa)
         spa->h_prime     = topocentric_local_hour_angle(spa->h, spa->del_alpha);
 
 		//Calculate the topocentric elevation angle without atmosphereic refraction correction
-        spa->e0      = topocentric_elevation_angle(spa->latitude, spa->delta_prime, spa->h_prime);
+        spa->e0      = topocentric_elevation_angle(spa->latitude, spa->delta_prime, spa->h_prime); //eqn 41
 		
 		// Ian Start
-        spa->del_e   = atmospheric_refraction_correction(spa->pressure, spa->temperature,
-                                                         spa->atmos_refract, spa->e0);
-        spa->e       = topocentric_elevation_angle_corrected(spa->e0, spa->del_e);
+         spa->del_e   = atmospheric_refraction_correction(spa->pressure, spa->temperature,
+                                                         spa->atmos_refract, spa->e0); //eqn 42
+        spa->e       = topocentric_elevation_angle_corrected(spa->e0, spa->del_e); //eqn 43
 
-        spa->zenith     = topocentric_zenith_angle(spa->e);
+        spa->zenith     = topocentric_zenith_angle(spa->e); //eqn 44
         spa->azimuth180 = topocentric_azimuth_angle_neg180_180(spa->h_prime, spa->latitude,
-                                                                             spa->delta_prime);
-        spa->azimuth    = topocentric_azimuth_angle_zero_360(spa->azimuth180);
+                                                                             spa->delta_prime); //eqn 45
+        spa->azimuth    = topocentric_azimuth_angle_zero_360(spa->azimuth180); //eqn 46
 
         if ((spa->function == SPA_ZA_INC) || (spa->function == SPA_ALL))
             spa->incidence  = surface_incidence_angle(spa->zenith, spa->azimuth180,
-                                                      spa->azm_rotation, spa->slope);
+                                                      spa->azm_rotation, spa->slope); //eqn 47
 
         if ((spa->function == SPA_ZA_RTS) || (spa->function == SPA_ALL))
             calculate_eot_and_sun_rise_transit_set(spa);
