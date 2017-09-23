@@ -610,6 +610,14 @@ int validate_inputs(spa_data *spa)
     return 0;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.1.1 : Calculate the Julian Day (JD)
+// Equation 4 : JD = INT(365.25*(Y+4716))+INT(30.6001*(M+1))+D+B-1524.5 , where:
+// 		INT: integer of the calculated terms, rounded down
+// 		Y: the year
+// 		M: the month of the year. If M>2, Y and M are not changed. If M<3, Y=Y-1 and M=M+12
+// 		D: the day of the month included decimal time
+// 		B: = 0 for the Julian calendar
+///////////////////////////////////////////////////////////////////////////////////////////////
 double julian_day (int year, int month, int day, int hour, int minute, int second, double tz)
 {
     double day_decimal, julian_day, a;
@@ -631,26 +639,58 @@ double julian_day (int year, int month, int day, int hour, int minute, int secon
     return julian_day;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.1.3 : Calculate the Julian Century (JC)
+// Equation 6 : JC = (JD - 2451545) / 36525, where:
+// 		JD: the Julian Day
+///////////////////////////////////////////////////////////////////////////////////////////////
 double julian_century(double jd)
 {
     return (jd-2451545.0)/36525.0;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.1.2 : Calculate the Julian Ephemeris Day (JDE)
+// Equation 5 : JDE = JD + deltaT/86400, where:
+// 		JD: the Julian Day
+// 		deltaT: the difference between Earth rotation time and Terrestrial Time (TT)
+///////////////////////////////////////////////////////////////////////////////////////////////
 double julian_ephemeris_day(double jd, double delta_t)
 {
     return jd+delta_t/86400.0;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.1.2 : Calculate the Julian Ephemeris Century (JCE)
+// Equation 7 : JCE = (JDE - 2451545) / 36525, where:
+// 		JDE: the Julian Ephemeris Day
+///////////////////////////////////////////////////////////////////////////////////////////////
 double julian_ephemeris_century(double jde)
 {
     return (jde - 2451545.0)/36525.0;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.1.3 : Calculate the Julian Ephemeris Millenium (JME)
+// Equation 8 : JME = JCE / 10, where:
+// 		JCE: the Julian Ephemeris Century
+///////////////////////////////////////////////////////////////////////////////////////////////
 double julian_ephemeris_millennium(double jce)
 {
     return (jce/10.0);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.2.1 : Calculate term L0(i) in radians
+// Equation 9 : L0(i) = A(i) * cos(B(i) + C(i) * JME), where:
+// 		i: the ith row for term L0
+// 		A, B, and C: values in the ith row in the A, B, and C columns
+// 		JME: the Julian Ephemeris Century
+//
+// Section 3.2.2 : Calculate the L0 term in radians
+// Equation 10: L0 = summation(L0(i) from i=1 to i=n, where:
+//		n: the number of rows for L0
+///////////////////////////////////////////////////////////////////////////////////////////////
 double earth_periodic_term_summation(const double terms[][TERM_COUNT], int count, double jme)
 {
     int i;
@@ -662,6 +702,10 @@ double earth_periodic_term_summation(const double terms[][TERM_COUNT], int count
     return sum;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.2.4 : Calculate the Earth heliocentric longitude (L) in radians
+// Equation 11 : L = (L0 + L1*JME + L2*JME^2 + L3*JME^3 + L4*JME^4 + L5*JME^5) / 10^8
+///////////////////////////////////////////////////////////////////////////////////////////////
 double earth_values(double term_sum[], int count, double jme)
 {
     int i;
@@ -675,6 +719,10 @@ double earth_values(double term_sum[], int count, double jme)
     return sum;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.2.5 : Calculate the Earth heliocentric longitude (L) in degrees
+// Equation 12 : L(degrees) = (L(radians) * 180) / pi
+///////////////////////////////////////////////////////////////////////////////////////////////
 double earth_heliocentric_longitude(double jme)
 {
     double sum[L_COUNT];
@@ -687,6 +735,9 @@ double earth_heliocentric_longitude(double jme)
 
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.2.7 : Calculate the Earth heliocentric latitude (B) in degrees
+///////////////////////////////////////////////////////////////////////////////////////////////
 double earth_heliocentric_latitude(double jme)
 {
     double sum[B_COUNT];
@@ -699,6 +750,9 @@ double earth_heliocentric_latitude(double jme)
 
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.2.8 : Calculate the Earth radius vector (R) in Astronomical Units (AU)
+///////////////////////////////////////////////////////////////////////////////////////////////
 double earth_radius_vector(double jme)
 {
     double sum[R_COUNT];
@@ -711,6 +765,11 @@ double earth_radius_vector(double jme)
 
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.3.1 : Calculate the geocentric longitude (theta) in degrees
+// Equation 13 : theta = L + 180, where:
+// 		L: the Earth heliocentric longitude
+///////////////////////////////////////////////////////////////////////////////////////////////
 double geocentric_longitude(double l)
 {
     double theta = l + 180.0;
@@ -720,31 +779,62 @@ double geocentric_longitude(double l)
     return theta;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.3.3 : Calculate the geocentric latitude (beta) in degrees
+// Equation 14 : beta = -B, where:
+// 		B: the Earth heliocentric latitude
+///////////////////////////////////////////////////////////////////////////////////////////////
 double geocentric_latitude(double b)
 {
     return -b;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.4.1 : Calculate the mean elongation of the moon from the sun X(0) in degrees
+// Equation 15 : X(0) = 297.85036 + 445267.111480*JCE - 0.0019142*JCE^2 + (1/189474)*JCE^3, where:
+// 		JCE: the Julian Ephemeris Century
+///////////////////////////////////////////////////////////////////////////////////////////////
 double mean_elongation_moon_sun(double jce)
 {
     return third_order_polynomial(1.0/189474.0, -0.0019142, 445267.11148, 297.85036, jce);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.4.2 : Calculate the mean anomaly of the sun X(1) in degrees
+// Equation 16 : X(1) = 357.52772 + 35999.050340*JCE - 0.0001603*JCE^2 - (1/300000)*JCE^3, where:
+// 		JCE: the Julian Ephemeris Century
+///////////////////////////////////////////////////////////////////////////////////////////////
 double mean_anomaly_sun(double jce)
 {
     return third_order_polynomial(-1.0/300000.0, -0.0001603, 35999.05034, 357.52772, jce);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.4.3 : Calculate the mean anomaly of the moon X(2) in degrees
+// Equation 17 : X(2) = 134.96298 + 477198.867398*JCE +0.0086972*JCE^2 + (1/56250)*JCE^3, where:
+// 		JCE: the Julian Ephemeris Century
+///////////////////////////////////////////////////////////////////////////////////////////////
 double mean_anomaly_moon(double jce)
 {
     return third_order_polynomial(1.0/56250.0, 0.0086972, 477198.867398, 134.96298, jce);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.4.5 : Calculate the moon's argument of latitude X(3) in degrees
+// Equation 18 : X(3) = 9327191 + 483202.017538*JCE − 0.0036825*JCE^2 + (1/327270)*JCE^3, where:
+// 		JCE: the Julian Ephemeris Century
+///////////////////////////////////////////////////////////////////////////////////////////////
 double argument_latitude_moon(double jce)
 {
     return third_order_polynomial(1.0/327270.0, -0.0036825, 483202.017538, 93.27191, jce);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.4.5 : Calculate the longitude of the ascending node of the moon’s mean orbit on the
+//					ecliptic, measured from the mean equinox of the date X(4) in degrees
+// Equation 19 : X(4) = 125.04452 - 1934.136261*JCE + 0.0020708+JCE^2 + (1/450000)*JCE^3, where:
+// 		JCE: the Julian Ephemeris Century
+///////////////////////////////////////////////////////////////////////////////////////////////
 double ascending_longitude_moon(double jce)
 {
     return third_order_polynomial(1.0/450000.0, 0.0020708, -1934.136261, 125.04452, jce);
@@ -761,6 +851,25 @@ double xy_term_summation(int i, double x[TERM_X_COUNT])
     return sum;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.4.6 : Calculate the nutation in longitude (deltaPsi(i)) and obliquity (deltaEpsilon(i))
+// Equation 20 : deltaPsi(i) = (a(i) + b(i)*JCE) * sin(summation(X(j) * Y(i,J) from j=0 to j=4)), where:
+// 		a(i), b(i): values listed in the ith row and columns a and b in Table A4.3
+//		X(j): the jth X calculated using Equations 15-19
+//		Y(i,J): the value listed in the ith row and jth Y column in Table A4.3
+// Equation 21 : deltaEpsilon(i) = (c(i) + d(i)*JCE) * cos(summation(X(j) * Y(i,J) from j=0 to j = 4)), where:
+//		c(i), d(i): values listed in the ith row and columns c and d in Table A4.3
+//		X(j): the jth X calculated using Equations 15-19
+//		Y(i,J): the value listed in the ith row and jth Y column in Table A4.3
+//
+// Section 3.4.7 : Calculate the nutation in longitude (deltaPsi) in degrees
+// Equation 22 : deltaPsi = summation(deltaPsi(i) from i=0 to i=n) / 36000000, where:
+//		n: number of rows in Table A403 (63 rows)
+//
+// Section 3.4.8 : Calculate the nutation in obliquity (deltaEpsilon) in degrees
+// Equation 23 : deltaEpsilon = summation(deltaEpsilon(i) from i=0 to i=n) / 36000000
+//		n: number of rows in Table A403 (63 rows)
+///////////////////////////////////////////////////////////////////////////////////////////////
 void nutation_longitude_and_obliquity(double jce, double x[TERM_X_COUNT], double *del_psi,
                                                                           double *del_epsilon)
 {
@@ -777,6 +886,12 @@ void nutation_longitude_and_obliquity(double jce, double x[TERM_X_COUNT], double
     *del_epsilon = sum_epsilon / 36000000.0;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.5.1 : Calculate the mean obliquity of the ecliptic, epsilon(0) in arc seconds
+// Equation 24 : epsilon(0) = 84381.448 - 4680.93U - 1.55U^2 + 1999.25U^3 - 51.38U^4 - 249.67U^5
+//								-39.05U^6 +7.12U^7 + 27.87U^8 + 5.79U^9 + 2.45U^10, where:
+//		U = JME / 10, JME is the Julian Ephemeris Millenium
+///////////////////////////////////////////////////////////////////////////////////////////////
 double ecliptic_mean_obliquity(double jme)
 {
     double u = jme/10.0;
@@ -785,32 +900,69 @@ double ecliptic_mean_obliquity(double jme)
                        u*(  -39.05 + u*( 7.12 + u*(  27.87 + u*(  5.79 + u*2.45)))))))));
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.5.2 : Calculate the true obliquity of the ecliptic, epsilon (in degrees)
+// Equation 25 : epsilon = (eplison(0) / 3600) + deltaEpsilon, where:
+//		epsilon(0): the mean obliquity of the ecliptic
+//		deltaEpsilon: the nutation in obliquity
+///////////////////////////////////////////////////////////////////////////////////////////////
 double ecliptic_true_obliquity(double delta_epsilon, double epsilon0)
 {
     return delta_epsilon + epsilon0/3600.0;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.6 : Calculate the aberration correction, deltaTau in degrees
+// Equation 26 : deltaTau = -20.4898 / (3600*R), where:
+//		R: the Earth radius vector
+///////////////////////////////////////////////////////////////////////////////////////////////
 double aberration_correction(double r)
 {
     return -20.4898 / (3600.0*r);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.7 : Calculate the apparent sun longitude (lambda) in degrees
+// Equation 27 : lambda = theta + deltaPsi + deltaTau, where:
+//		theta: the geocentric longitutde
+//		deltaPsi: the nutation in longitude
+//		deltaTau: the abberation correction
+///////////////////////////////////////////////////////////////////////////////////////////////
 double apparent_sun_longitude(double theta, double delta_psi, double delta_tau)
 {
     return theta + delta_psi + delta_tau;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.8.1 : Calculate the mean sidereal time at Greenwich (nu(0)) in degrees
+// Equation 28 : nu(0) = 280.46061837 + 360.98564736629*(JD-251545) + 0.000387933*JC^2 - (1/38710000)*JC^3, where:
+//		JC: the Julian century
+///////////////////////////////////////////////////////////////////////////////////////////////
 double greenwich_mean_sidereal_time (double jd, double jc)
 {
     return limit_degrees(280.46061837 + 360.98564736629 * (jd - 2451545.0) +
                                        jc*jc*(0.000387933 - jc/38710000.0));
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.8.3 : Calculate the apparent sidereal time at Greenwich (nu) in degrees
+// Equation 29 : nu = nu(0) + deltaPsi * cos(epsilon), where:
+//		nu(0): the mean sidereal time at Greenwich
+//		deltaPsi: the nutation in longitude
+//		epsilon: the true obliquity of the ecliptic
+///////////////////////////////////////////////////////////////////////////////////////////////
 double greenwich_sidereal_time (double nu0, double delta_psi, double epsilon)
 {
     return nu0 + delta_psi*cos(deg2rad(epsilon));
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.9 : Calculate the geocentric sun right ascension (alpha) in degrees
+// Equation 30 : alpha = arctan2((sin(lambda)*cos(epsilon) - tan(beta)*sin(epsilon)) / cos(lambda)), where:
+//		lambda: the apparent sun longitutde
+//		epsilon: the true obliquity of the ecliptic
+//		beta: the geocentric latitude
+///////////////////////////////////////////////////////////////////////////////////////////////
 double geocentric_sun_right_ascension(double lamda, double epsilon, double beta)
 {
     double lamda_rad   = deg2rad(lamda);
@@ -820,6 +972,13 @@ double geocentric_sun_right_ascension(double lamda, double epsilon, double beta)
                                        tan(deg2rad(beta))*sin(epsilon_rad), cos(lamda_rad))));
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.10 : Calculate the geocentric sun declination (delta) in degrees
+// Equation 31 : delta = arcsin(sin(beta)*cos(epsilon) + cos(beta)*sin(epsilon)*sin(lambda)), where:
+//		beta: the geocentric latitude
+//		epsilon: the true obliquity of the eciptic
+//		lambda: the apparent sun longitutde
+///////////////////////////////////////////////////////////////////////////////////////////////
 double geocentric_sun_declination(double beta, double epsilon, double lamda)
 {
     double beta_rad    = deg2rad(beta);
@@ -829,16 +988,56 @@ double geocentric_sun_declination(double beta, double epsilon, double lamda)
                         cos(beta_rad)*sin(epsilon_rad)*sin(deg2rad(lamda))));
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.11 : Calculate the observer local hour angle (H) in degrees
+// Equation 32 : H = nu + sigma - alpha, where
+//		nu: the apparent sidereal time at Greenwich
+//		sigma: the observer geographical longitude, positive or negative for east or west of Greenwich, respectively
+//		alpha: the geocentric sun right ascension
+///////////////////////////////////////////////////////////////////////////////////////////////
 double observer_hour_angle(double nu, double longitude, double alpha_deg)
 {
     return limit_degrees(nu + longitude - alpha_deg);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.12.1 : Calculate the equatorial horizontal parallax of the sun (xi) in degrees
+// Equation 33 : xi = 8.794 / (3600*R), where:
+//		R: the Earth radius vector
+///////////////////////////////////////////////////////////////////////////////////////////////
 double sun_equatorial_horizontal_parallax(double r)
 {
     return 8.794 / (3600.0 * r);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.12.2 : Calculate the term u in radians
+// Equation 34 : u = arctan(0.99664719*tan(phi)), where:
+//		phi: the observer geographical latitude, positive or negative if north or south of the equator, respectively
+//
+// Section 3.12.3 : Calculate the term x
+// Equation 35 : x = cos(u) + (E / 6378140) * cos(phi), where:
+//		E: the observer elevation in meters
+//		phi: the observer geographical latitude
+//
+// Section 3.12.4 : Calculate the term y
+// Equation 36 : y = 0.99664719 * sin(u) + (E / 6378140) * sin(phi), where:
+//		E: the observer elevation in meters
+//		phi: the observer geographical latitude
+//
+// Section 3.12.5 : Calculate the parallax in the sun right ascension (deltaAlpha) in degrees
+// Equation 37 : deltaAlpha = arctan2(( (-x*sin(xi)*sin(H)) / (cos(delta) - x*sin(xi)*cos(H)) ), where:
+//		xi: the equatorial horizontal parallax of the sun
+//		H: the local observer hour angle
+//		delta: the geocentric sun declination
+//
+// Section 3.12.7 : Calculate the topocentric sun declination (delta') in degrees
+// Equation 39 : delta' = arctan2( ((sin(delta) - y*sin(xi))8cos(deltaApha)) / (cos(delta) - x*sin(xi)*cos(H)) ), where:
+//		delta: the geocentric sun declination
+//		xi: the equatorial horizontal parallax of the sun
+//		deltaAlpha: the parallax in the sun right ascension
+//		H: the local observer hour angle
+///////////////////////////////////////////////////////////////////////////////////////////////
 void sun_right_ascension_parallax_and_topocentric_dec(double latitude, double elevation,
 	           double xi, double h, double delta, double *delta_alpha, double *delta_prime)
 {
@@ -860,16 +1059,35 @@ void sun_right_ascension_parallax_and_topocentric_dec(double latitude, double el
     *delta_alpha = rad2deg(delta_alpha_rad);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.12.6 : Calculate the topocentric sun right ascension (alpha')
+// Equation 38 : alpha' = alpha + deltaAlpha, where:
+//		alpha: the geocentric sun right ascension
+//		deltaAlpha: the parallax in the sun right ascension
+///////////////////////////////////////////////////////////////////////////////////////////////
 double topocentric_sun_right_ascension(double alpha_deg, double delta_alpha)
 {
     return alpha_deg + delta_alpha;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.13 : Calculate the topocentric local hour angle (H') in degrees
+// Equation 40 : H' = H - deltaAlpha, where:
+//		H: the local observer hour angle
+//		deltaAlpha: the parallax in the sun right ascension
+///////////////////////////////////////////////////////////////////////////////////////////////
 double topocentric_local_hour_angle(double h, double delta_alpha)
 {
     return h - delta_alpha;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Section 3.14.1 : Calculate the topocentric elevation angle without atmosphereic refraction correction (e(0)) in degrees
+// Equation 41 : e(0) = arcsin( sin(phi) * sin(delta) + cos(phi) * cos(delta) * cos(H') ), where:
+// 		phi: the observer geographical latitude
+//		delta: the geocentric sun declination
+//		H': the topocentric local hour angle
+///////////////////////////////////////////////////////////////////////////////////////////////
 double topocentric_elevation_angle(double latitude, double delta_prime, double h_prime)
 {
     double lat_rad         = deg2rad(latitude);
@@ -998,37 +1216,37 @@ void calculate_geocentric_sun_right_ascension_and_declination(spa_data *spa)
 {
     double x[TERM_X_COUNT];
 
-    spa->jc = julian_century(spa->jd);
+    spa->jc = julian_century(spa->jd);						//Equation 6
 
-    spa->jde = julian_ephemeris_day(spa->jd, spa->delta_t);
-    spa->jce = julian_ephemeris_century(spa->jde);
-    spa->jme = julian_ephemeris_millennium(spa->jce);
+    spa->jde = julian_ephemeris_day(spa->jd, spa->delta_t); //Equation 5
+    spa->jce = julian_ephemeris_century(spa->jde);			//Equation 7
+    spa->jme = julian_ephemeris_millennium(spa->jce);		//Equation 8
 
-    spa->l = earth_heliocentric_longitude(spa->jme);
-    spa->b = earth_heliocentric_latitude(spa->jme);
-    spa->r = earth_radius_vector(spa->jme);
+    spa->l = earth_heliocentric_longitude(spa->jme);		//Equations 9,10,11,12
+    spa->b = earth_heliocentric_latitude(spa->jme);			//same as above
+    spa->r = earth_radius_vector(spa->jme);					//same as above. Replace R5 with 0
 
-    spa->theta = geocentric_longitude(spa->l);
-    spa->beta  = geocentric_latitude(spa->b);
+    spa->theta = geocentric_longitude(spa->l);				//Equation 13
+    spa->beta  = geocentric_latitude(spa->b);				//Equation 14
 
-    x[TERM_X0] = spa->x0 = mean_elongation_moon_sun(spa->jce);
-    x[TERM_X1] = spa->x1 = mean_anomaly_sun(spa->jce);
-    x[TERM_X2] = spa->x2 = mean_anomaly_moon(spa->jce);
-    x[TERM_X3] = spa->x3 = argument_latitude_moon(spa->jce);
-    x[TERM_X4] = spa->x4 = ascending_longitude_moon(spa->jce);
+    x[TERM_X0] = spa->x0 = mean_elongation_moon_sun(spa->jce);	//Equation 15
+    x[TERM_X1] = spa->x1 = mean_anomaly_sun(spa->jce);			//Equation 16
+    x[TERM_X2] = spa->x2 = mean_anomaly_moon(spa->jce);			//Equation 17
+    x[TERM_X3] = spa->x3 = argument_latitude_moon(spa->jce);	//Equation 18
+    x[TERM_X4] = spa->x4 = ascending_longitude_moon(spa->jce);	//Equation 19
 
-    nutation_longitude_and_obliquity(spa->jce, x, &(spa->del_psi), &(spa->del_epsilon));
+    nutation_longitude_and_obliquity(spa->jce, x, &(spa->del_psi), &(spa->del_epsilon)); //Equations 20,21
 
-    spa->epsilon0 = ecliptic_mean_obliquity(spa->jme);
-    spa->epsilon  = ecliptic_true_obliquity(spa->del_epsilon, spa->epsilon0);
+    spa->epsilon0 = ecliptic_mean_obliquity(spa->jme);							//Equation 24
+    spa->epsilon  = ecliptic_true_obliquity(spa->del_epsilon, spa->epsilon0);	//Equation 25
 
-    spa->del_tau   = aberration_correction(spa->r);
-    spa->lamda     = apparent_sun_longitude(spa->theta, spa->del_psi, spa->del_tau);
-    spa->nu0       = greenwich_mean_sidereal_time (spa->jd, spa->jc);
-    spa->nu        = greenwich_sidereal_time (spa->nu0, spa->del_psi, spa->epsilon);
+    spa->del_tau   = aberration_correction(spa->r);										//Equation 26
+    spa->lamda     = apparent_sun_longitude(spa->theta, spa->del_psi, spa->del_tau);	//Equation 27
+    spa->nu0       = greenwich_mean_sidereal_time (spa->jd, spa->jc);					//Equation 28
+    spa->nu        = greenwich_sidereal_time (spa->nu0, spa->del_psi, spa->epsilon);	//Equation 29
 
-    spa->alpha = geocentric_sun_right_ascension(spa->lamda, spa->epsilon, spa->beta);
-    spa->delta = geocentric_sun_declination(spa->beta, spa->epsilon, spa->lamda);
+    spa->alpha = geocentric_sun_right_ascension(spa->lamda, spa->epsilon, spa->beta);	//Equation 30
+    spa->delta = geocentric_sun_declination(spa->beta, spa->epsilon, spa->lamda);		//Equation 31
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1116,21 +1334,35 @@ int spa_calculate(spa_data *spa)
 
     if (result == 0)
     {
+		// Justin Start
+		
+		//Calculate the Julian Day
         spa->jd = julian_day (spa->year, spa->month,  spa->day,
                               spa->hour, spa->minute, spa->second, spa->timezone);
 
+		//Calculate general parameters
         calculate_geocentric_sun_right_ascension_and_declination(spa);
 
+		//Calculate observer local hour angle
         spa->h  = observer_hour_angle(spa->nu, spa->longitude, spa->alpha);
+		
+		//Calculate the equatorial horizontal parallax of the sun
         spa->xi = sun_equatorial_horizontal_parallax(spa->r);
 
+		//Calculate parallax in sun right ascension and topocentric sun declination
         sun_right_ascension_parallax_and_topocentric_dec(spa->latitude, spa->elevation, spa->xi,
                                     spa->h, spa->delta, &(spa->del_alpha), &(spa->delta_prime));
 
+		//Calculate topocentric sun ascension
         spa->alpha_prime = topocentric_sun_right_ascension(spa->alpha, spa->del_alpha);
+		
+		//Calculate the topocentric local hour angle
         spa->h_prime     = topocentric_local_hour_angle(spa->h, spa->del_alpha);
 
+		//Calculate the topocentric elevation angle without atmosphereic refraction correction
         spa->e0      = topocentric_elevation_angle(spa->latitude, spa->delta_prime, spa->h_prime);
+		
+		// Ian Start
         spa->del_e   = atmospheric_refraction_correction(spa->pressure, spa->temperature,
                                                          spa->atmos_refract, spa->e0);
         spa->e       = topocentric_elevation_angle_corrected(spa->e0, spa->del_e);
