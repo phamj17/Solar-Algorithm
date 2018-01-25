@@ -1,5 +1,5 @@
 // SoftwareSerial - Version: Latest 
-//#include <SoftwareSerial.h>
+#include <SoftwareSerial.h>
 
 /*
   Serial Event example
@@ -19,26 +19,25 @@
  http://www.arduino.cc/en/Tutorial/SerialEvent
 
  */
-//SoftwareSerial mySerial = SoftwareSerial(10,11);
+SoftwareSerial mySerial(10,11); //RX, TX
 String inputString = "";         // a string to hold incoming data
-boolean stringComplete = false;  // whether the string is complete
-String time, latitude, longitude, date;
+boolean stringComplete = true;  // whether the string is complete
+String timee, latitude, longitude, date;
 boolean flag = false;
 
 void setup() {
   // initialize serial:
   Serial.begin(9600);
-  Serial1.begin(9600);
+  mySerial.begin(9600);
   // reserve 200 bytes for the inputString:
   inputString.reserve(200);
-  
 }
 
 void loop() {
   // print the string when a newline arrives:
   if (stringComplete) {
     Serial.print("\nTime: ");
-    Serial.print(time);
+    Serial.print(timee);
     Serial.print("\nLatitude: ");
     Serial.print(latitude);
     Serial.print("\nLongitude: ");
@@ -49,12 +48,19 @@ void loop() {
     Serial.print(inputString);
     // clear the string:
     inputString = "";
-    time = "";
+    timee = "";
     latitude = "";
     longitude = "";
     date = "";
     stringComplete = false;
   }
+  //if(mySerial.available()){
+  //  Serial.write(mySerial.read());
+  //}  
+}
+
+void parse(){
+  
 }
 
 /*
@@ -64,10 +70,10 @@ void loop() {
  response.  Multiple bytes of data may be available.
  */
 void serialEvent1() {
-  while (Serial1.available()) {
+  while (mySerial.available()) {
     // get the new byte:
     //Serial.println("reading data...\n");
-    char inChar = (char)Serial1.read();
+    char inChar = (char)mySerial.read();
     // add it to the inputString:
     inputString += inChar;
     //Serial.println(inputString);
@@ -94,7 +100,7 @@ void serialEvent1() {
        count++;
        switch (count) {
         case 2:
-          time = temp;
+          timee = temp;
           break;
         case 4:
           latitude = temp;
