@@ -1,5 +1,6 @@
 // SoftwareSerial - Version: Latest 
 #include <SoftwareSerial.h>
+//#include <Gpsneo.h>
 
 /*
   Serial Event example
@@ -21,7 +22,7 @@
  */
 SoftwareSerial mySerial(10,11); //RX, TX
 String inputString = "";         // a string to hold incoming data
-boolean stringComplete = true;  // whether the string is complete
+boolean stringComplete = false;  // whether the string is complete
 String timee, latitude, longitude, date;
 boolean flag = false;
 
@@ -35,6 +36,7 @@ void setup() {
 
 void loop() {
   // print the string when a newline arrives:
+  /*
   if (stringComplete) {
     Serial.print("\nTime: ");
     Serial.print(timee);
@@ -54,25 +56,30 @@ void loop() {
     date = "";
     stringComplete = false;
   }
-  //if(mySerial.available()){
-  //  Serial.write(mySerial.read());
-  //}  
-}
+  */
 
-void parse(){
+  if(stringComplete){
+    Serial.println(inputString);
+    inputString = "";
+    stringComplete = false;
+  }
+  
+  if(mySerial.available()){
+    //Serial.write(mySerial.read());
+    char inChar = (char)mySerial.read();
+    inputString += inChar;
+    if (inChar == '\n')
+      stringComplete = true;
+  }  
+
+  //parse();
   
 }
-
 /*
-  SerialEvent occurs whenever a new data comes in the
- hardware serial RX.  This routine is run between each
- time loop() runs, so using delay inside loop can delay
- response.  Multiple bytes of data may be available.
- */
-void serialEvent1() {
+void parse() {
   while (mySerial.available()) {
     // get the new byte:
-    //Serial.println("reading data...\n");
+    Serial.println("reading data...\n");
     char inChar = (char)mySerial.read();
     // add it to the inputString:
     inputString += inChar;
@@ -85,8 +92,9 @@ void serialEvent1() {
       flag = true;
       //Serial.print(flag);
     }
-    
+
     if (inChar == '\n' && flag) {
+      Serial.println("wudddddduuuuuppppppp");
       // 1: $GPRMC
       // 2: UTC Position: hhmmss.sss
       // 4: Latitude: ddmm.mmmm
@@ -101,20 +109,26 @@ void serialEvent1() {
        switch (count) {
         case 2:
           timee = temp;
+          Serial.println("time: " + timee);
           break;
         case 4:
           latitude = temp;
+          Serial.println("latitude: " + latitude);
           break;
         case 6:
           longitude = temp;
+          Serial.println("longitude: " + longitude);
           break;
         case 10:
           date = temp;
+          Serial.println("date: " + date);
           break;
        }
       }
+      Serial.println("done with while.....................................");
       stringComplete = true;
     }
   }
 }
+*/
 
