@@ -57,12 +57,6 @@ void loop() {
     stringComplete = false;
   }
   */
-
-  if(stringComplete){
-    Serial.println(inputString);
-    inputString = "";
-    stringComplete = false;
-  }
   
   if(mySerial.available()){
     //Serial.write(mySerial.read());
@@ -72,9 +66,64 @@ void loop() {
       stringComplete = true;
   }  
 
+  if(stringComplete){
+    Serial.print(inputString);
+    parse(inputString);
+    inputString = "";
+    stringComplete = false;
+  }
   //parse();
-  
 }
+
+void parse(String in)
+{
+  //Serial.println("we parsin");
+  String type = "$GPRMC,";
+  if (!in.startsWith(type))
+  {
+    Serial.println("not the type");
+    return;
+  }
+  Serial.println("we the type");
+  int firstComma = 0;
+  int secondComma = 0;
+  int count = 0;
+  String val = "";
+  while (in.indexOf(',', firstComma) != -1)
+  {
+    //Serial.println("firstComma = " + String(firstComma));
+    secondComma = in.indexOf(',', firstComma);
+    Serial.println("secondComma = " + String(secondComma));
+    val = in.substring(firstComma+1, secondComma);
+    switch (count)
+    {
+      case 1: //time
+        timee = val;
+        Serial.println("time: " + timee);
+        break;
+      //case 2: //status (A or V)
+      case 3: //latitude
+        latitude = val;
+        Serial.println("latitude: " + latitude);
+        break;
+      //case 4: //latitude direction
+      case 5: //longitude
+        longitude = val;
+        Serial.println("longitude: " + longitude);
+        break;
+      //case 6: //longitude direction
+      case 9: //date
+        date = val;
+        Serial.println("date: " + date);
+        break;
+    }
+    count++;
+    firstComma = secondComma;
+    Serial.println("firstComma = " + String(firstComma));
+  }
+  return;
+}
+
 /*
 void parse() {
   while (mySerial.available()) {
