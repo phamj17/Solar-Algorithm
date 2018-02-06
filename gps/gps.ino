@@ -92,8 +92,8 @@ void parse(String in)
   while (in.indexOf(',', firstComma) != -1)
   {
     //Serial.println("firstComma = " + String(firstComma));
-    secondComma = in.indexOf(',', firstComma);
-    Serial.println("secondComma = " + String(secondComma));
+    secondComma = in.indexOf(',', firstComma+1);
+    //Serial.println("secondComma = " + String(secondComma));
     val = in.substring(firstComma+1, secondComma);
     switch (count)
     {
@@ -119,8 +119,11 @@ void parse(String in)
     }
     count++;
     firstComma = secondComma;
-    Serial.println("firstComma = " + String(firstComma));
+    //Serial.println("firstComma = " + String(firstComma));
   }
+  count = 0;
+  firstComma = 0;
+  secondComma = 0;
   return;
 }
 
