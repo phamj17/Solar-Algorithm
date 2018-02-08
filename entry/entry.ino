@@ -1,7 +1,10 @@
 #include <SoftwareSerial.h>
-//#include "spa.h"
-//#include "Buffers.h"
-//#include "SCI0.h"
+#include "P:\seniorProject\Solar-Algorithm\spa.h"
+//#include "P:\seniorProject\Solar-Algorithm\Buffers.h"
+//#include "P:\seniorProject\Solar-Algorithm\SCI0.h"
+
+#define LATITUDE 0
+#define LONGITUDE 1
 
 SoftwareSerial mySerial(10,11); //RX, TX
 String inputString = "";         // a string to hold incoming data
@@ -9,6 +12,8 @@ boolean stringComplete = false;  // whether the string is complete
 String timee, latitude, longitude, date;
 int lat_dir, long_dir;
 boolean flag = false;
+
+spa_data spa;
 
 void setup() {
   // initialize serial:
@@ -24,7 +29,7 @@ void loop() {
     inputString += inChar;
     if (inChar == '\n')
       stringComplete = true;
-  }  
+  }
 
   if(stringComplete){
     Serial.print(inputString);
@@ -43,16 +48,13 @@ void parse(String in)
     Serial.println("not the type");
     return;
   }
-  Serial.println("we the type");
   int firstComma = 0;
   int secondComma = 0;
   int count = 0;
   String val = "";
   while (in.indexOf(',', firstComma) != -1)
   {
-    //Serial.println("firstComma = " + String(firstComma));
     secondComma = in.indexOf(',', firstComma+1);
-    //Serial.println("secondComma = " + String(secondComma));
     val = in.substring(firstComma+1, secondComma);
     switch (count)
     {
@@ -105,9 +107,61 @@ void parse(String in)
   secondComma = 0;
   return;
 }
+
+void refresh_spa_data(void)
+{
+  spa.timezone = -8.0; //double
+  //int
+  spa.year = ("20" + date.substring(4,5)).toInt();
+  spa.month = (date.substring(0,1)).toInt();
+  spa.day = (date.substring(2,3)).toInt();  
+  spa.hour = timee.substring(0,1).toInt() + spa.timezone;
+  spa.minute = timee.substring(2,3).toInt();
+  spa.second = timee.substring(4,5).toInt();
+  //double
+  spa.delta_t = wtf
+  spa.longitude = convert_coordinates(LONGITUDE);
+  spa.latitude = convert_coordinates(LATITUDE);
+  spa.elevation =
+  spa.pressure =
+  spa.temperature =
+  spa.slope =
+  spa.azm_rotation =
+  spa.atmos_refrac =
+  spa.function = //int
+}
+
 /*
+ * latitude: 4534.30846
+ * lat_dir: 1
+ * longitude: 12243.67538
+ * long_dir: -1
+ */
+double convert_coordinates(int code)
+{
+  int period;
+  if (code == LATITUDE)
+  {
+    period = latitude.indexOf('.', 0);
+    if (period)
+      return latitude / 100.00 * lat_dir;
+  }
+  else
+  {
+    period = longitude.indexOf('.', 0);
+    if (period)
+      return longitude / 100.00 * long_dir;
+  }
+  return 0;
+}
+/*
+TT = TAI + 32.184sec
+TAI = UTC + 37sec
+TT = UTC + 69.184sec
+if leap year, add 1.00sec to these numbers
+*/
 void track()
 {
   
 }
-*/
+
