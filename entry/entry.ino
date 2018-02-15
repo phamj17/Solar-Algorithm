@@ -43,25 +43,12 @@ void loop() {
   if(stringComplete){
     Serial.print(inputString);
     parse(inputString);
-//    refresh_spa_data(void);
-//    convert_coordinates(LATITUDE);
-//    convert_coordinates(LONGITUDE);
     inputString = "";
     stringComplete = false;
-  }
 
-  //print to lcd
-  lcd.setCursor(0, 0);
-  lcd.print("time: " + timee);
-  
-  lcd.setCursor(0, 1);
-  lcd.print("lat: " + latitude);
-  
-  lcd.setCursor(0, 2);
-  lcd.print("long: " + longitude);
-  
-  lcd.setCursor(0, 3);
-  lcd.print("date: " + date);
+    refresh_spa_data();
+    lcdprint();
+  }
 }
 
 void parse(String in)
@@ -126,30 +113,30 @@ void parse(String in)
 }
 
 
-//void refresh_spa_data(void)
-//{
-//  spa.timezone = -8.0; //double
-//  //int
-//  spa.year = ("20" + date.substring(4,5)).toInt();
-//  spa.month = (date.substring(0,1)).toInt();
-//  spa.day = (date.substring(2,3)).toInt();  
-//  spa.hour = timee.substring(0,1).toInt() + spa.timezone;
-//  spa.minute = timee.substring(2,3).toInt();
-//  spa.second = timee.substring(4,5).toInt();
-//  //double
-//  //spa.delta_t = wtf
-//  spa.longitude = convert_coordinates(LONGITUDE);
-//  spa.latitude = convert_coordinates(LATITUDE);
-//  /*
-//  spa.elevation =
-//  spa.pressure =
-//  spa.temperature =
-//  spa.slope =
-//  spa.azm_rotation =
-//  spa.atmos_refrac =
-//  spa.function = //int
-//  */
-//}
+void refresh_spa_data(void)
+{
+  spa.timezone = -8.0; //double
+  //int
+  spa.year = ("20" + date.substring(4,5)).toInt();
+  spa.month = (date.substring(0,1)).toInt();
+  spa.day = (date.substring(2,3)).toInt();  
+  spa.hour = timee.substring(0,1).toInt() + spa.timezone;
+  spa.minute = timee.substring(2,3).toInt();
+  spa.second = timee.substring(4,5).toInt();
+  //double
+  //spa.delta_t = wtf
+  spa.longitude = convert_coordinates(LONGITUDE);
+  spa.latitude = convert_coordinates(LATITUDE);
+  /*
+  spa.elevation =
+  spa.pressure =
+  spa.temperature =
+  spa.slope =
+  spa.azm_rotation =
+  spa.atmos_refrac =
+  spa.function = //int
+  */
+}
 
 
 /*
@@ -158,7 +145,6 @@ void parse(String in)
  * longitude: 12243.67538
  * long_dir: -1
  */
- /*
 double convert_coordinates(int code)
 {
   int period;
@@ -176,7 +162,23 @@ double convert_coordinates(int code)
   }
   return 0;
 }
-*/
+
+
+void lcdprint()
+{
+  //print to lcd
+  lcd.setCursor(0, 0);
+  lcd.print("time: %d:%d:%d", spa.hour, spa.minute, spa.second);
+  
+  lcd.setCursor(0, 1);
+  lcd.print("lat: %lf", spa.latitude);
+  
+  lcd.setCursor(0, 2);
+  lcd.print("long: %lf", spa.longitude);
+  
+  lcd.setCursor(0, 3);
+  lcd.print("date: %d/%d/%d", spa.month, spa.day, spa.year);
+}
 
 
 /*
