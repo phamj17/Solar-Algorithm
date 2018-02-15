@@ -2,6 +2,7 @@
 #include "P:\seniorProject\Solar-Algorithm\spa.h"
 //#include "P:\seniorProject\Solar-Algorithm\Buffers.h"
 //#include "P:\seniorProject\Solar-Algorithm\SCI0.h"
+#include <LiquidCrystal.h>
 
 #define LATITUDE 0
 #define LONGITUDE 1
@@ -13,6 +14,11 @@ String timee, latitude, longitude, date;
 int lat_dir, long_dir;
 boolean flag = false;
 
+// initialize the library by associating any needed LCD interface pin
+// with the arduino pin number it is connected to
+const int rs = 50, en = 52, d4 = 47, d5 = 49, d6 = 51, d7 = 53;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
 spa_data spa;
 
 void setup() {
@@ -20,6 +26,9 @@ void setup() {
   Serial.begin(9600);
   mySerial.begin(9600);
   inputString.reserve(200); // reserve 200 bytes for the inputString:
+
+  // set up the LCD's number of columns and rows:
+  lcd.begin(20, 4);
 }
 
 void loop() {
@@ -34,9 +43,25 @@ void loop() {
   if(stringComplete){
     Serial.print(inputString);
     parse(inputString);
+//    refresh_spa_data(void);
+//    convert_coordinates(LATITUDE);
+//    convert_coordinates(LONGITUDE);
     inputString = "";
     stringComplete = false;
   }
+
+  //print to lcd
+  lcd.setCursor(0, 0);
+  lcd.print("time: " + timee);
+  
+  lcd.setCursor(0, 1);
+  lcd.print("lat: " + latitude);
+  
+  lcd.setCursor(0, 2);
+  lcd.print("long: " + longitude);
+  
+  lcd.setCursor(0, 3);
+  lcd.print("date: " + date);
 }
 
 void parse(String in)
@@ -69,13 +94,9 @@ void parse(String in)
         break;
       case 4: //latitude direction
         if (val.equals("N"))
-        {
           lat_dir = 1;
-        }
         else
-        {
           lat_dir = -1;
-        }
         Serial.println("lat_dir: " + String(lat_dir));
         break;
       case 5: //longitude
@@ -84,13 +105,9 @@ void parse(String in)
         break;
       case 6: //longitude direction
         if (val.equals("E"))
-        {
           long_dir = 1;
-        }
         else
-        {
           long_dir = -1;
-        }
         Serial.println("long_dir: " + String(long_dir));
         break;
       case 9: //date
@@ -108,28 +125,32 @@ void parse(String in)
   return;
 }
 
-void refresh_spa_data(void)
-{
-  spa.timezone = -8.0; //double
-  //int
-  spa.year = ("20" + date.substring(4,5)).toInt();
-  spa.month = (date.substring(0,1)).toInt();
-  spa.day = (date.substring(2,3)).toInt();  
-  spa.hour = timee.substring(0,1).toInt() + spa.timezone;
-  spa.minute = timee.substring(2,3).toInt();
-  spa.second = timee.substring(4,5).toInt();
-  //double
-  spa.delta_t = wtf
-  spa.longitude = convert_coordinates(LONGITUDE);
-  spa.latitude = convert_coordinates(LATITUDE);
-  spa.elevation =
-  spa.pressure =
-  spa.temperature =
-  spa.slope =
-  spa.azm_rotation =
-  spa.atmos_refrac =
-  spa.function = //int
-}
+
+//void refresh_spa_data(void)
+//{
+//  spa.timezone = -8.0; //double
+//  //int
+//  spa.year = ("20" + date.substring(4,5)).toInt();
+//  spa.month = (date.substring(0,1)).toInt();
+//  spa.day = (date.substring(2,3)).toInt();  
+//  spa.hour = timee.substring(0,1).toInt() + spa.timezone;
+//  spa.minute = timee.substring(2,3).toInt();
+//  spa.second = timee.substring(4,5).toInt();
+//  //double
+//  //spa.delta_t = wtf
+//  spa.longitude = convert_coordinates(LONGITUDE);
+//  spa.latitude = convert_coordinates(LATITUDE);
+//  /*
+//  spa.elevation =
+//  spa.pressure =
+//  spa.temperature =
+//  spa.slope =
+//  spa.azm_rotation =
+//  spa.atmos_refrac =
+//  spa.function = //int
+//  */
+//}
+
 
 /*
  * latitude: 4534.30846
@@ -137,6 +158,7 @@ void refresh_spa_data(void)
  * longitude: 12243.67538
  * long_dir: -1
  */
+ /*
 double convert_coordinates(int code)
 {
   int period;
@@ -144,24 +166,28 @@ double convert_coordinates(int code)
   {
     period = latitude.indexOf('.', 0);
     if (period)
-      return latitude / 100.00 * lat_dir;
+      return latitude.toInt() / 100.00 * lat_dir;
   }
   else
   {
     period = longitude.indexOf('.', 0);
     if (period)
-      return longitude / 100.00 * long_dir;
+      return longitude.toInt() / 100.00 * long_dir;
   }
   return 0;
 }
+*/
+
+
 /*
 TT = TAI + 32.184sec
 TAI = UTC + 37sec
 TT = UTC + 69.184sec
 if leap year, add 1.00sec to these numbers
-*/
+
 void track()
 {
   
 }
+*/
 
