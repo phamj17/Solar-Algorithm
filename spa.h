@@ -53,6 +53,10 @@
 #define __solar_position_algorithm_header
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //enumeration for function codes to select desired final outputs from SPA
 enum {
     SPA_ZA,           //calculate zenith and azimuth
@@ -170,9 +174,16 @@ typedef struct
     double sunrise;     //local sunrise time (+/- 30 seconds) [fractional hour]
     double sunset;      //local sunset time (+/- 30 seconds) [fractional hour]
 
-} spa_data;
+}spa_data;
+
 
 //Calculate SPA output values (in structure) based on input values passed in structure
 int spa_calculate(spa_data *spa);
 
+#ifdef __cplusplus
+}
 #endif
+
+#endif
+
+

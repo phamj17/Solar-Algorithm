@@ -38,6 +38,7 @@ void loop() {
     inputString = "";
     stringComplete = false;
     refresh_spa_data();
+    track();
   }
 }
 
@@ -116,18 +117,18 @@ void refresh_spa_data(void)
   spa.minute = timee.substring(2,4).toInt();
   spa.second = timee.substring(4,6).toInt();
   //double
-  //spa.delta_t = wtf
+  spa.delta_t = 0.0;
   spa.longitude = convert_coordinates(1);
   spa.latitude = convert_coordinates(0);
-  /*
-  spa.elevation =
-  spa.pressure =
-  spa.temperature =
-  spa.slope =
-  spa.azm_rotation =
-  spa.atmos_refrac =
-  spa.function = //int
-  */
+  
+  spa.elevation = 0.0;
+  spa.pressure = 30.0;
+  spa.temperature = 30.0;
+  //spa.slope =
+  //spa.azm_rotation =
+  //spa.atmos_refrac =
+  spa.function = SPA_ALL;
+  
   char buf[200];
   sprintf(buf, "year: %d\nmonth: %d\nday: %d\nhour: %d\nminute: %d\nsecond: %d\n", spa.year,spa.month,spa.day,spa.hour,spa.minute,spa.second);
   Serial.println("Longitude: " + String(spa.longitude));
@@ -167,10 +168,20 @@ TT = TAI + 32.184sec
 TAI = UTC + 37sec
 TT = UTC + 69.184sec
 if leap year, add 1.00sec to these numbers
-
+*/
 void track()
 {
-  
+  int result = spa_calculate(&spa);
+  if (result == 0)
+  {
+    Serial.println(spa.zenith);
+    Serial.println(spa.azimuth180);
+    Serial.println(spa.azimuth);
+    Serial.println(spa.incidence);
+    Serial.println(spa.suntransit);
+    Serial.println(spa.sunrise);
+    Serial.println(spa.sunset);
+  }
 }
-*/
+
 
