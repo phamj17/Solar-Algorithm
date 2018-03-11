@@ -1,14 +1,8 @@
 #include <SoftwareSerial.h>
-//#include "P:\seniorProject\Solar-Algorithm\spa.h"
-//#include "C:\Users\Pham\Documents\Arduino\Solar-Algorithm\spa.h"
-//#include "P:\seniorProject\Solar-Algorithm\Buffers.h"
-//#include "P:\seniorProject\Solar-Algorithm\SCI0.h"
 #include "sunpos.h"
-
 
 #define LATITUDE 0
 #define LONGITUDE 1
-
 
 SoftwareSerial mySerial(10,11); //RX, TX
 String inputString = "";         // a string to hold incoming data
@@ -19,12 +13,27 @@ boolean flag = false;
 
 int timer;
 
+// motor driver pin definitions
+// note: 1.8 degrees per full step
+const int stepPin = 13;
+const int dirPin = 12;
+const int reset = 30;
+const int sleep = 32;
+
+//MS1, MS2, MS3
+// 000: full step
+// 100: half step
+// 010: quarter step
+// 110: eighth step
+// 111: sixteenth step
+const int MS1 = 22;
+const int MS2 = 24;
+const int MS3 = 26;
 
 //spa_data spa;
 cTime c_time;
 cLocation c_location;
 cSunCoordinates c_suncoordinates;
-
 
 void setup() {
   // initialize serial:
@@ -33,10 +42,35 @@ void setup() {
   inputString.reserve(200); // reserve 200 bytes for the inputString:
 
   timer = 0;
+  
+  // sets motor driver outputs
+  pinMode(stepPin, OUTPUT);
+  pinMode(dirPin, OUTPUT);
+  digitalWrite(dirPin, HIGH);
+  
+  // setup motor step to FULL STEP
+  pinMode(MS1, OUTPUT);
+  pinMode(MS2, OUTPUT);
+  pinMode(MS3, OUTPUT);
+  digitalWrite(MS1, LOW);
+  digitalWrite(MS2, LOW);
+  digitalWrite(MS3, LOW);
 }
 
-
 void loop() {
+    
+  // motor driver stuff
+  if (!flag)
+  {
+    digitalWrite(stepPin, HIGH);
+    flag = true;
+  }
+  else
+  {
+    digitalWrite(stepPin, LOW);
+    flag = false;
+  }
+  
   if(mySerial.available()){
     //Serial.write(mySerial.read());
     
@@ -46,7 +80,6 @@ void loop() {
       stringComplete = true;
   }
 
-  //delay(5000);
   if(stringComplete){
     //Serial.print(inputString);
     
@@ -74,7 +107,6 @@ void loop() {
     stringComplete = false; 
   } 
 }
-
 
 boolean parse(String in)
 {
@@ -144,7 +176,6 @@ boolean parse(String in)
   return change;
 }
 
-
 /*
  * latitude: 4534.30846
  * lat_dir: 1
@@ -168,7 +199,6 @@ double convert_coordinates(int code)
   }
   return 0;
 }
-
 
 void refresh_sunpos_data(void)
 {
@@ -203,69 +233,9 @@ void refresh_sunpos_data(void)
   Serial.println("Latitude: " + String(c_location.dLatitude));
 }
 
-
 void track(void)
 {
   sunpos(c_time,c_location,&c_suncoordinates);
   Serial.println("Zenith Angle: " + String(c_suncoordinates.dZenithAngle));
   Serial.println("Azimuth: " + String(c_suncoordinates.dAzimuth));
 }
-
-
-//void refresh_spa_data(void)
-//{
-//  spa.timezone = -8.0; //double
-//  //int
-//  spa.year = ("20" + date.substring(4,6)).toInt();
-//  spa.month = (date.substring(2,4)).toInt();
-//  spa.day = (date.substring(0,2)).toInt();
-//  spa.hour = timee.substring(0,2).toInt() + spa.timezone;
-//  if (spa.hour < 0)
-//    spa.hour += 24;
-//  spa.minute = timee.substring(2,4).toInt();
-//  spa.second = timee.substring(4,6).toInt();
-//  //double
-//  spa.delta_t = 0.0;
-//  spa.longitude = convert_coordinates(1);
-//  spa.latitude = convert_coordinates(0);
-//  
-//  spa.elevation = 0.0;
-//  spa.pressure = 30.0;
-//  spa.temperature = 30.0;
-//  //spa.slope =
-//  //spa.azm_rotation =
-//  //spa.atmos_refrac =
-//  spa.function = SPA_ALL;
-//  
-//  char buf[200];
-//  sprintf(buf, "year: %d\nmonth: %d\nday: %d\nhour: %d\nminute: %d\nsecond: %d\n", spa.year,spa.month,spa.day,spa.hour,spa.minute,spa.second);
-//  Serial.println("Longitude: " + String(spa.longitude));
-//  Serial.println("Latitude: " + String(spa.latitude));
-//  Serial.println("Timezone: " + String(spa.timezone));
-//  Serial.println(buf);
-//}
-//
-//
-//
-///*
-//TT = TAI + 32.184sec
-//TAI = UTC + 37sec
-//TT = UTC + 69.184sec
-//if leap year, add 1.00sec to these numbers
-//*/
-//void track()
-//{
-//  int result = spa_calculate(&spa);
-//  if (result == 0)
-//  {
-//    Serial.println(spa.zenith);
-//    Serial.println(spa.azimuth180);
-//    Serial.println(spa.azimuth);
-//    Serial.println(spa.incidence);
-//    Serial.println(spa.suntransit);
-//    Serial.println(spa.sunrise);
-//    Serial.println(spa.sunset);
-//  }
-//}
-
-
