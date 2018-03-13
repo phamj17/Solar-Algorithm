@@ -4,7 +4,7 @@
 #define LATITUDE 0
 #define LONGITUDE 1
 
-SoftwareSerial mySerial(10,11); //RX, TX
+//SoftwareSerial mySerial(10,11); //RX, TX
 String inputString = "";         // a string to hold incoming data
 boolean stringComplete = false;  // whether the string is complete
 String timee, latitude, longitude, date;
@@ -38,7 +38,8 @@ cSunCoordinates c_suncoordinates;
 void setup() {
   // initialize serial:
   Serial.begin(9600);
-  mySerial.begin(9600);
+  Serial1.begin(9600);
+  //mySerial.begin(9600);
   inputString.reserve(200); // reserve 200 bytes for the inputString:
 
   timer = 0;
@@ -60,52 +61,50 @@ void setup() {
 void loop() {
     
   // motor driver stuff
-  if (!flag)
-  {
-    digitalWrite(stepPin, HIGH);
-    flag = true;
+  digitalWrite(dirPin,HIGH); // Enables the motor to move in a particular direction
+  // Makes 200 pulses for making one full cycle rotation
+  for(int x = 0; x < 200; x++) {
+    digitalWrite(stepPin,HIGH); 
+    delayMicroseconds(500); 
+    digitalWrite(stepPin,LOW); 
+    delayMicroseconds(500); 
   }
-  else
-  {
-    digitalWrite(stepPin, LOW);
-    flag = false;
-  }
+  delay(1000); // One second delay
   
-  if(mySerial.available()){
-    //Serial.write(mySerial.read());
-    
-    char inChar = (char)mySerial.read();
-    inputString += inChar;
-    if (inChar == '\n')
-      stringComplete = true;
+  digitalWrite(dirPin,LOW); //Changes the rotations direction
+  // Makes 400 pulses for making two full cycle rotation
+  for(int x = 0; x < 400; x++) {
+    digitalWrite(stepPin,HIGH);
+    delayMicroseconds(500);
+    digitalWrite(stepPin,LOW);
+    delayMicroseconds(500);
   }
+  delay(1000);
+}
 
-  if(stringComplete){
-    //Serial.print(inputString);
-    
-    Serial.println("\n---------STARTING PARSE-------------");
-    if (parse(inputString))
+void serialEvent1()
+{
+    while (Serial1.available())
     {
-      refresh_sunpos_data();
-      track();
-    }
-    Serial.println("---------FINISHED PARSE-------------\n");
-    
-    //Serial.println("\n---------STARTING SUNPOS DATA-------------");
-    //refresh_sunpos_data();
-    //Serial.println("---------FINISHED SUNPOS DATA-------------\n");
+        char inChar = (char)Serial1.read();
+        inputString += inChar;
+        if (inChar == '\n')
+        stringComplete = true;
 
-    //if (timer == 15) {
-      //Serial.println("\n---------STARTING TRACK-------------");
-    //  track();
-      //Serial.println("---------FINISHED TRACK-------------\n");
-    //  timer = 0;
-    //}
-    
-    //timer++;
-    inputString = "";
-    stringComplete = false; 
-  } 
+        if(stringComplete)
+        {
+            Serial.println("\n---------STARTING PARSE-------------");
+            if (parse(inputString))
+            {
+                refresh_sunpos_data();
+                track();
+            }
+            Serial.println("---------FINISHED PARSE-------------\n");
+            //timer++;
+            inputString = "";
+            stringComplete = false;
+        }
+    }
 }
 
 boolean parse(String in)
