@@ -1,8 +1,6 @@
 #include <math.h>
+//#include <elapsedMillis.h>
 #include "sunpos.h"
-
-#define LATITUDE 0
-#define LONGITUDE 1
 
 // motor step resolution (degrees)
 #define S1 1.8
@@ -12,17 +10,23 @@
 #define S16 0.1125
 
 // range of motion of panel
-#define MAX_RANGE 360.0
+#define MAX_RANGE 1800.0
 
 #define GEAR_RATIO 1
 
+#define TRACK_INTERVAL 1000*60*10
+
 const double stepSize = S16;
 double currDegrees = 0.0;
+
+double currAzi;
+double prevAzi;
 
 String inputString = "";         // a string to hold incoming data
 boolean stringComplete = false;  // whether the string is complete
 String timee, latitude, longitude, date;
 int lat_dir, long_dir;
+boolean c_valid;
 
 int timer;
 
@@ -36,7 +40,7 @@ const int MS1 = 22;
 const int MS2 = 24;
 const int MS3 = 26;
 
-//spa_data spa;
+//sunpos structures
 cTime c_time;
 cLocation c_location;
 cSunCoordinates c_suncoordinates;
@@ -68,24 +72,27 @@ void setup() {
     pinMode(MS1, OUTPUT);
     pinMode(MS2, OUTPUT);
     pinMode(MS3, OUTPUT);
+    //switch (stepSize)
     digitalWrite(MS1, HIGH);
     digitalWrite(MS2, HIGH);
     digitalWrite(MS3, HIGH);
 }
 
 void loop() {
+    /*
     double x = 60.0;
     rotate(x);
     timer++;
     if (timer == 6)
     {
-        resetMotor();
+        reset_motor();
         timer = 0;
     }
-
-    //delay(2000);
-    //rotate(x * 2);
-    //delay(2000);
+    */
+    if (c_valid)
+    {
+        rotate(c_suncoordinates.dAzimuth - 150.0);
+    }
 }
 
 /*
@@ -102,8 +109,8 @@ WHAT WE NEED:
 7) power arduino from power supply and adjust driver
 8) figure out gear ratio
 
+9) recheck year, direction data
 */
-
 
 void rotate(double nani)
 {
@@ -119,7 +126,7 @@ void rotate(double nani)
         digitalWrite(dirPin,LOW);
         dir = -1;
     }
-    double yeart = abs(nani);
+    double yeart = abs(nani) * GEAR_RATIO;
     int pulses = (int) round(yeart / stepSize);
     
     if (currDegrees + (dir * pulses * stepSize) > MAX_RANGE)
@@ -140,7 +147,7 @@ void rotate(double nani)
     }
 }
 
-void resetMotor()
+void reset_motor()
 {
     rotate(-1 * currDegrees);
 }
@@ -151,11 +158,12 @@ void serialEvent1()
     {
         char inChar = (char)Serial1.read();
         inputString += inChar;
-        if (inChar == '\n')
-        stringComplete = true;
+        if (inChar == '$')
+            stringComplete = true;
 
         if(stringComplete)
         {
+            //Serial.println(inputString);
             if (parse(inputString))
             {
                 refresh_sunpos_data();
@@ -170,7 +178,7 @@ void serialEvent1()
 
 boolean parse(String in)
 {
-    String type = "$GPRMC,";
+    String type = "GPRMC,";
     if (!in.startsWith(type))
         return false;
     
@@ -190,7 +198,14 @@ boolean parse(String in)
             change = true;
             //Serial.println("time: " + timee);
             break;
-        //case 2: //status (A or V)
+        case 2: //status (A or V)
+            if (val.equals("V"))
+            {
+                c_valid = false;
+                return false;
+            }
+            c_valid = true;
+            break;
         case 3: //latitude
             latitude = val;
             change = true;
@@ -202,12 +217,12 @@ boolean parse(String in)
             else
             lat_dir = -1;
             change = true;
-            Serial.println("lat_dir: " + String(lat_dir));
+            //Serial.println("lat_dir: " + String(lat_dir));
             break;
         case 5: //longitude
             longitude = val;
             change = true;
-            Serial.println("longitude: " + longitude);
+            //Serial.println("longitude: " + longitude);
             break;
         case 6: //longitude direction
             if (val.equals("E"))
@@ -215,12 +230,12 @@ boolean parse(String in)
             else
             long_dir = -1;
             change = true;
-            Serial.println("long_dir: " + String(long_dir));
+            //Serial.println("long_dir: " + String(long_dir));
             break;
         case 9: //date
             date = val;
             change = true;
-            Serial.println("date: " + date + "\n");
+            //Serial.println("date: " + date + "\n");
             break;
         }
         count++;
@@ -232,47 +247,41 @@ boolean parse(String in)
     return change;
 }
 
-double convert_coordinates(int code)
+double convert_latitude()
 {
     int period;
-    if (code == LATITUDE)
-    {
-        period = latitude.indexOf('.', 0);
-        if (period)
-            return latitude.toInt() / 100.00000 * lat_dir;
-    }
-    else
-    {
-        period = longitude.indexOf('.', 0);
-        if (period)
-            return longitude.toInt() / 100.00000 * long_dir;
-    }
+    period = latitude.indexOf('.', 0);
+    if (period)
+        return latitude.toInt() / 100.00000 * lat_dir;
+
+    return 0;
+}
+
+double convert_longitude()
+{
+    int period;
+    period = longitude.indexOf('.', 0);
+    if (period)
+        return longitude.toInt() / 100.00000 * long_dir;
+    
     return 0;
 }
 
 void refresh_sunpos_data(void)
 {
-    double timezone = -8.0;
-    
-    //int
+    double timezone = -7.0;
     c_time.iYear = ("20" + date.substring(4,6)).toInt();
     c_time.iMonth = (date.substring(2,4)).toInt();
     c_time.iDay = (date.substring(0,2)).toInt();
-    
-    //double
-    c_time.dHours = timee.substring(0,2).toInt() + timezone;
-    if (c_time.dHours < 0)
-        c_time.dHours += 24;
+    c_time.dHours = timee.substring(0,2).toInt();// + timezone;
+    //if (c_time.dHours < 0)
+    //    c_time.dHours += 24;
     c_time.dMinutes = timee.substring(2,4).toInt();
     c_time.dSeconds = timee.substring(4,6).toInt();
+    c_location.dLongitude = convert_longitude();
+    c_location.dLatitude = convert_latitude();
     
-    //double
-    c_location.dLongitude = convert_coordinates(1);
-    c_location.dLatitude = convert_coordinates(0);
-    
-    //char buf[200];
-    //sprintf(buf, "\nYear: %d\nMonth: %d\nDay: %d\nHour: %lf\nMinute: %lf\nSecond: %lf\n", c_time.iYear,c_time.iMonth,c_time.iDay,c_time.dHours,c_time.dMinutes,c_time.dSeconds);
-    //Serial.println(buf);
+    Serial.println("Valid: " + String(c_valid));
     Serial.println("Month: " + String(c_time.iMonth));
     Serial.println("Day: " + String(c_time.iDay));
     Serial.println("Year: " + String(c_time.iYear));
@@ -288,4 +297,7 @@ void track(void)
     sunpos(c_time,c_location,&c_suncoordinates);
     Serial.println("Zenith Angle: " + String(c_suncoordinates.dZenithAngle));
     Serial.println("Azimuth: " + String(c_suncoordinates.dAzimuth));
+    //prevAzi = currAzi;
+    //currAzi = c_suncoordinates.dAzimuth;
+    
 }
