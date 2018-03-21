@@ -8,6 +8,7 @@
 #define S4 0.45
 #define S8 0.225
 #define S16 0.1125
+#define S32 0.05625
 
 // range of motion of panel
 #define MAX_RANGE 1800.0
@@ -16,7 +17,7 @@
 
 #define TRACK_INTERVAL 1000*60*10
 
-const double stepSize = S16;
+const double stepSize = S1;
 double currDegrees = 0.0;
 
 double currAzi;
@@ -73,36 +74,32 @@ void setup() {
     pinMode(MS2, OUTPUT);
     pinMode(MS3, OUTPUT);
     //switch (stepSize)
-    digitalWrite(MS1, HIGH);
-    digitalWrite(MS2, HIGH);
-    digitalWrite(MS3, HIGH);
+    digitalWrite(MS1, LOW);
+    digitalWrite(MS2, LOW);
+    digitalWrite(MS3, LOW);
     
     currAzi = 0.0;
     prevAzi = 0.0;
+    
+    c_valid = false;
 }
 
 void loop() {
-    /*
-    double x = 60.0;
-    rotate(x);
-    timer++;
-    if (timer == 6)
-    {
-        reset_motor();
-        timer = 0;
-    }
-    */
 
     currAzi = c_suncoordinates.dAzimuth;
+    if (prevAzi == 0)
+        prevAzi = currAzi;
     
     Serial.println("Previous Azimuth: " + String(prevAzi));
     Serial.println("Current Azimuth: " + String(currAzi));
-    //if (c_valid && (currAzi - prevAzi > 0.12))
-    //{
-        rotate(4.0); //3.75 seems to be the minimum
-    //    Serial.println("we rotatin");
-    //    prevAzi = currAzi;
-    //}
+    double motor_diff = (currAzi - prevAzi) * GEAR_RATIO;
+    // if (c_valid && (motor_diff > 0.12))
+    // {
+       // rotate(motor_diff); //3.75 seems to be the minimum
+       // Serial.println("we rotatin");
+       // prevAzi = currAzi;
+    // }
+    rotate(90.0);
 }
 
 /*
@@ -136,13 +133,13 @@ void rotate(double nani)
         digitalWrite(dirPin,LOW);
         dir = -1;
     }
-    double yeart = abs(nani) * GEAR_RATIO;
+    double yeart = abs(nani);
     int pulses = (int) round(yeart / stepSize);
     Serial.println("pulses: " + String(pulses));
     Serial.println("yeart: " + String(yeart));
     Serial.println("stepSize: " + String(stepSize));
-    //if (currDegrees + (dir * pulses * stepSize) > MAX_RANGE)
-    //    pulses = (int) floor((MAX_RANGE - currDegrees) / stepSize);
+    if (currDegrees + (dir * pulses * stepSize) > MAX_RANGE)
+        pulses = (int) floor((MAX_RANGE - currDegrees) / stepSize);
     
     if (pulses != 0)
     {
@@ -157,6 +154,7 @@ void rotate(double nani)
         //digitalWrite(stepPin,LOW);
         digitalWrite(sleep, LOW);
         currDegrees += (dir * pulses * stepSize);
+        Serial.println(String(currDegrees));
     }
 }
 
@@ -181,8 +179,10 @@ void serialEvent1()
             {
                 refresh_sunpos_data();
                 track();
+                c_valid = true;
             }
-            //timer++;
+            else
+                c_valid = false;
             inputString = "";
             stringComplete = false;
         }
@@ -198,9 +198,7 @@ boolean parse(String in)
     int firstComma = 0;
     int secondComma = 0;
     int count = 0;
-    c_valid = false;
     String val = "";
-    boolean change = false;
     Serial.println("we parsin");
     Serial.println(in);
     while (in.indexOf(',', firstComma) != -1)
@@ -211,23 +209,14 @@ boolean parse(String in)
         {
         case 1: //time
             timee = val;
-            change = true;
             //Serial.println("time: " + timee);
             break;
         case 2: //status (A or V)
-            if (val.equals("A"))
-            {
-                c_valid = true;
-            }
-            else
-            {
-                c_valid = false;
+            if (val != "A")
                 return false;
-            }
             break;
         case 3: //latitude
             latitude = val;
-            change = true;
             //Serial.println("latitude: " + latitude);
             break;
         case 4: //latitude direction
@@ -236,16 +225,11 @@ boolean parse(String in)
             else if (val.equals("S"))
                 lat_dir = -1;
             else
-            {
-                c_valid = false;
                 return false;
-            }
-            change = true;
             //Serial.println("lat_dir: " + String(lat_dir));
             break;
         case 5: //longitude
             longitude = val;
-            change = true;
             //Serial.println("longitude: " + longitude);
             break;
         case 6: //longitude direction
@@ -254,23 +238,14 @@ boolean parse(String in)
             else if (val.equals("W"))
                 long_dir = -1;
             else
-            {
-                c_valid = false;
                 return false;
-            }
-            change = true;
             //Serial.println("long_dir: " + String(long_dir));
             break;
         case 9: //date
             date = val;
             if (date.length() != 6)
-            {
-                c_valid = false;
                 return false;
-            }
-            change = true;
             //Serial.println("date: " + date + "\n");
-
             break;
         }
         count++;
@@ -279,7 +254,7 @@ boolean parse(String in)
     count = 0;
     firstComma = 0;
     secondComma = 0;
-    return change;
+    return true;
 }
 
 double convert_latitude()
