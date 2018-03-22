@@ -12,10 +12,8 @@
 
 // range of motion of panel
 #define MAX_RANGE 1800.0
-
 #define GEAR_RATIO 1.0
-
-#define TRACK_INTERVAL 1000*60*10
+//#define TRACK_INTERVAL 1000*60*10
 
 const double stepSize = S1;
 double currDegrees = 0.0;
@@ -23,23 +21,27 @@ double currDegrees = 0.0;
 double currAzi;
 double prevAzi;
 
-String inputString = "";         // a string to hold incoming data
-boolean stringComplete = false;  // whether the string is complete
+String inputString;         // a string to hold incoming data
+boolean stringComplete;  // whether the string is complete
 String timee, latitude, longitude, date;
 int lat_dir, long_dir;
 boolean c_valid;
+double currentVal;
 
 int timer;
 
 // motor driver pin definitions
 // note: 1.8 degrees per full step
-const int stepPin = 13;
-const int dirPin = 12;
+const int stepPin = 12;
+const int dirPin = 13;
 const int reset = 30;
 const int sleep = 32;
 const int MS1 = 22;
 const int MS2 = 24;
 const int MS3 = 26;
+
+//current sensor pin
+const int currentPin = 10;
 
 //sunpos structures
 cTime c_time;
@@ -63,25 +65,57 @@ void setup() {
     digitalWrite(reset, HIGH);
     digitalWrite(sleep, LOW);
     
-    // setup motor step to FULL STEP (S1)
     // MS1, MS2, MS3
     // 000: full step
     // 100: half step
-    // 010: quarter step
-    // 110: eighth step
-    // 111: sixteenth step
+    // 010: 1/4 step
+    // 110: 1/8 step
+    // 001: 1/16 step
+    // 101: 1/32 step
+    // 011: 1/32 step
+    // 111: 1/32 step
     pinMode(MS1, OUTPUT);
     pinMode(MS2, OUTPUT);
     pinMode(MS3, OUTPUT);
-    //switch (stepSize)
-    digitalWrite(MS1, LOW);
-    digitalWrite(MS2, LOW);
-    digitalWrite(MS3, LOW);
+    
+    if (stepSize == S1) {
+        digitalWrite(MS1, LOW);
+        digitalWrite(MS2, LOW);
+        digitalWrite(MS3, LOW);
+    }
+    else if (stepSize == S2) {
+        digitalWrite(MS1, HIGH);
+        digitalWrite(MS2, LOW);
+        digitalWrite(MS3, LOW);
+    }
+    else if (stepSize == S4) {
+        digitalWrite(MS1, LOW);
+        digitalWrite(MS2, HIGH);
+        digitalWrite(MS3, LOW);
+    }
+    else if (stepSize == S8) {
+        digitalWrite(MS1, HIGH);
+        digitalWrite(MS2, HIGH);
+        digitalWrite(MS3, LOW);
+    }
+    else if (stepSize == S16) {
+        digitalWrite(MS1, LOW);
+        digitalWrite(MS2, LOW);
+        digitalWrite(MS3, HIGH);
+    }
+    else if (stepSize == S32) {
+        digitalWrite(MS1, HIGH);
+        digitalWrite(MS2, HIGH);
+        digitalWrite(MS3, HIGH);
+    }
     
     currAzi = 0.0;
     prevAzi = 0.0;
     
-    c_valid = false;
+    c_valid = true;
+    inputString = "";
+    stringComplete = false;
+    currentVal = 0.0;
 }
 
 void loop() {
@@ -90,8 +124,8 @@ void loop() {
     if (prevAzi == 0)
         prevAzi = currAzi;
     
-    Serial.println("Previous Azimuth: " + String(prevAzi));
-    Serial.println("Current Azimuth: " + String(currAzi));
+    //Serial.println("Previous Azimuth: " + String(prevAzi));
+    //Serial.println("Current Azimuth: " + String(currAzi));
     double motor_diff = (currAzi - prevAzi) * GEAR_RATIO;
     // if (c_valid && (motor_diff > 0.12))
     // {
@@ -99,7 +133,15 @@ void loop() {
        // Serial.println("we rotatin");
        // prevAzi = currAzi;
     // }
-    rotate(90.0);
+    rotate(18.0);    // timer++;
+    // Serial.println("timer: " + String(timer));
+    // Serial.println("currDegrees: " + String(currDegrees));
+    // Serial.println("------------------------");
+    // if (currDegrees >= MAX_RANGE) {
+        // reset_motor();
+        // timer = 0;
+    // }
+    //reset_motor();
 }
 
 /*
@@ -147,9 +189,9 @@ void rotate(double nani)
         delay(1000);
         for(int x = 0; x < pulses; x++) {
             digitalWrite(stepPin,HIGH);
-            delayMicroseconds(500);
+            delayMicroseconds(1000);
             digitalWrite(stepPin,LOW);
-            delayMicroseconds(500);
+            delayMicroseconds(1000);
         }
         //digitalWrite(stepPin,LOW);
         digitalWrite(sleep, LOW);
@@ -199,8 +241,6 @@ boolean parse(String in)
     int secondComma = 0;
     int count = 0;
     String val = "";
-    Serial.println("we parsin");
-    Serial.println(in);
     while (in.indexOf(',', firstComma) != -1)
     {
         secondComma = in.indexOf(',', firstComma+1);
@@ -209,7 +249,6 @@ boolean parse(String in)
         {
         case 1: //time
             timee = val;
-            //Serial.println("time: " + timee);
             break;
         case 2: //status (A or V)
             if (val != "A")
@@ -217,7 +256,6 @@ boolean parse(String in)
             break;
         case 3: //latitude
             latitude = val;
-            //Serial.println("latitude: " + latitude);
             break;
         case 4: //latitude direction
             if (val.equals("N"))
@@ -226,11 +264,9 @@ boolean parse(String in)
                 lat_dir = -1;
             else
                 return false;
-            //Serial.println("lat_dir: " + String(lat_dir));
             break;
         case 5: //longitude
             longitude = val;
-            //Serial.println("longitude: " + longitude);
             break;
         case 6: //longitude direction
             if (val.equals("E"))
@@ -239,13 +275,11 @@ boolean parse(String in)
                 long_dir = -1;
             else
                 return false;
-            //Serial.println("long_dir: " + String(long_dir));
             break;
         case 9: //date
-            date = val;
-            if (date.length() != 6)
+            if (val.length() != 6)
                 return false;
-            //Serial.println("date: " + date + "\n");
+            date = val;
             break;
         }
         count++;
@@ -305,6 +339,11 @@ void refresh_sunpos_data(void)
 void track(void)
 {
     sunpos(c_time,c_location,&c_suncoordinates);
-    //Serial.println("Zenith Angle: " + String(c_suncoordinates.dZenithAngle));
-    //Serial.println("Azimuth: " + String(c_suncoordinates.dAzimuth));
 }
+/*
+void refresh_current()
+{
+    int currentSensor = analogRead(currentPin);
+    currentVal = (514 - sensorValue) * 75.76 / 1023;
+}
+*/
