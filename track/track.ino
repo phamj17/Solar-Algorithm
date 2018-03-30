@@ -11,7 +11,7 @@
 #define S32 0.05625
 
 // range of motion of panel
-#define MAX_RANGE 1800.0
+#define MAX_RANGE 10440.0
 #define GEAR_RATIO 1.0
 //#define TRACK_INTERVAL 1000*60*10
 
@@ -26,9 +26,8 @@ boolean stringComplete;  // whether the string is complete
 String timee, latitude, longitude, date;
 int lat_dir, long_dir;
 boolean c_valid;
-double currentVal;
 
-int timer;
+int timer1, timer2;
 
 // motor driver pin definitions
 // note: 1.8 degrees per full step
@@ -40,9 +39,23 @@ const int MS1 = 22;
 const int MS2 = 24;
 const int MS3 = 26;
 
-//current sensor pin
-const int currentPin = 10;
+//current sensor
+const int currentPinC = A0;
+const int currentPinT = A1;
+float vpp = 5.0 / 1024;
+float sensitivity = 0.066;
+float currentC = 0.0;
+float currentT = 0.0;
 
+//voltage sensor
+const int voltagePinC = A2;
+const int voltagePinT = A3;
+float voutC = 0.0;
+float voutT = 0.0;
+float vinC = 0.0;
+float vinT = 0.0;
+const float voltageR1 = 30000.0;
+const float voltageR2 = 7500.0;
 //sunpos structures
 cTime c_time;
 cLocation c_location;
@@ -54,7 +67,8 @@ void setup() {
     Serial1.begin(9600);
     inputString.reserve(200); // reserve 200 bytes for the inputString:
     
-    timer = 0;
+    timer1 = 0;
+    timer2 = 58;
     
     // sets motor driver outputs
     pinMode(stepPin, OUTPUT);
@@ -64,6 +78,11 @@ void setup() {
     digitalWrite(dirPin, HIGH);
     digitalWrite(reset, HIGH);
     digitalWrite(sleep, LOW);
+
+    pinMode(currentPinC, INPUT);
+    pinMode(currentPinT, INPUT);
+    pinMode(voltagePinC, INPUT);
+    pinMode(voltagePinT, INPUT);
     
     // MS1, MS2, MS3
     // 000: full step
@@ -115,7 +134,6 @@ void setup() {
     c_valid = true;
     inputString = "";
     stringComplete = false;
-    currentVal = 0.0;
 }
 
 void loop() {
@@ -133,7 +151,17 @@ void loop() {
        // Serial.println("we rotatin");
        // prevAzi = currAzi;
     // }
-    rotate(18.0);    // timer++;
+    delay(2000);
+    if(timer1 < 58){
+      rotate(180.0);    
+      timer1++;
+    }
+    if(timer1 > 58){
+      rotate(-180.0); 
+      timer2--;
+      if(timer2 == 0)
+        delay(100000);
+    }
     // Serial.println("timer: " + String(timer));
     // Serial.println("currDegrees: " + String(currDegrees));
     // Serial.println("------------------------");
@@ -142,6 +170,9 @@ void loop() {
         // timer = 0;
     // }
     //reset_motor();
+    
+    //refresh_current();
+    //refresh_voltage();
 }
 
 /*
@@ -340,10 +371,28 @@ void track(void)
 {
     sunpos(c_time,c_location,&c_suncoordinates);
 }
-/*
+
 void refresh_current()
 {
-    int currentSensor = analogRead(currentPin);
-    currentVal = (514 - sensorValue) * 75.76 / 1023;
+    float countsC = analogRead(currentPinC);
+    float countsT = analogRead(currentPinT);
+    float voltsC = countsC * vpp;
+    float voltsT = countsT * vpp;
+    float currentC = (voltsC - (103.0 * vpp)) / (2 * sensitivity);
+    float currentT = (voltsT - (103.0 * vpp)) / (2 * sensitivity);
+    //Serial.println("AMPS: " + String(amps));
+    //Serial.println(counts);
+    delay(500);
 }
-*/
+
+void refresh_voltage()
+{
+    float valueC = analogRead(voltagePinC);
+    float valueT = analogRead(voltagePinT);
+    voutC = (valueC * 5.0) / 1024.0;
+    voutT = (valueT * 5.0) / 1024.0;
+    vinC = voutC*4;// / ;/// (voltageR2/(voltageR1+voltageR2));
+    vinT = voutT*4;
+    //Serial.println("Volts: " + String(vin));
+}
+
