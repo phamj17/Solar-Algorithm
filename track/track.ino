@@ -12,7 +12,7 @@
 
 // range of motion of panel
 #define MAX_RANGE 10440.0
-#define GEAR_RATIO 1.0
+#define GEAR_RATIO 100.0
 //#define TRACK_INTERVAL 1000*60*10
 
 const double stepSize = S1;
@@ -20,6 +20,7 @@ double currDegrees = 0.0;
 
 double currAzi;
 double prevAzi;
+double angleLeftover;
 
 String inputString;         // a string to hold incoming data
 boolean stringComplete;  // whether the string is complete
@@ -56,6 +57,7 @@ float vinC = 0.0;
 float vinT = 0.0;
 const float voltageR1 = 30000.0;
 const float voltageR2 = 7500.0;
+
 //sunpos structures
 cTime c_time;
 cLocation c_location;
@@ -130,47 +132,70 @@ void setup() {
     
     currAzi = 0.0;
     prevAzi = 0.0;
+    angleLeftover = 0.0;
     
     c_valid = true;
     inputString = "";
     stringComplete = false;
+
 }
 
 void loop() {
-
-    currAzi = c_suncoordinates.dAzimuth;
-    if (prevAzi == 0)
+    currAzi = c_suncoordinates.dAzimuth - 160; 
+    if (prevAzi == 0 && currAzi > 0)
+      prevAzi = currAzi;
+    //else
+    //  return;
+      
+    if(abs(currAzi - prevAzi) < 1.8){
+      double motor_diff = (currAzi - prevAzi) + angleLeftover;
+      /*delay(500);
+      Serial.println("Previous Azimuth: " + String(prevAzi));
+      Serial.println("Current Azimuth: " + String(currAzi));
+      Serial.println("Motor Diff: " + String(motor_diff));
+      Serial.println("Curr Degrees: " + String(currDegrees));
+      */
+      Serial.println("C_Valid: " + String(c_valid));
+      if (c_valid && motor_diff > 0.3 && currAzi > 0 && currDegrees < 40.0){
+        angleLeftover = motor_diff - 0.3;
+        Serial.println("Anlge Leftover: " + String(angleLeftover));
+        //rotate(motor_diff * GEAR_RATIO);
+        rotate(180.0);
         prevAzi = currAzi;
-    
-    //Serial.println("Previous Azimuth: " + String(prevAzi));
-    //Serial.println("Current Azimuth: " + String(currAzi));
-    double motor_diff = (currAzi - prevAzi) * GEAR_RATIO;
-    // if (c_valid && (motor_diff > 0.12))
-    // {
-       // rotate(motor_diff); //3.75 seems to be the minimum
-       // Serial.println("we rotatin");
-       // prevAzi = currAzi;
-    // }
-    delay(2000);
-    if(timer1 < 58){
-      rotate(180.0);    
-      timer1++;
+      }
+      else if (currDegrees > 40.0 || currAzi > 205.0){
+        digitalWrite(sleep, LOW);
+      }
+      
+      // if (c_valid && (motor_diff > 0.12))
+      // {
+         // rotate(motor_diff); //3.75 seems to be the minimum
+         // Serial.println("we rotatin");
+         // prevAzi = currAzi;
+      // }
+      //delay(1000);
+      //if(timer1 < 120){
+        //rotate(90.0);    
+        //timer1++;
+      //}
+      //if(timer1 > 120){
+        //rotate(-90.0); 
+        //timer2--;
+        //if(timer2 == 0)
+          //delay(100000);
+      //}
+      //Serial.println(" --- ROTATIONS: " + String(timer1));
+      // Serial.println("timer: " + String(timer));
+      // Serial.println("currDegrees: " + String(currDegrees));
+      // Serial.println("------------------------");
+      // if (currDegrees >= MAX_RANGE) {
+          // reset_motor();
+          // timer = 0;
+      // }
+      //reset_motor();
     }
-    if(timer1 > 58){
-      rotate(-180.0); 
-      timer2--;
-      if(timer2 == 0)
-        delay(100000);
-    }
-    // Serial.println("timer: " + String(timer));
-    // Serial.println("currDegrees: " + String(currDegrees));
-    // Serial.println("------------------------");
-    // if (currDegrees >= MAX_RANGE) {
-        // reset_motor();
-        // timer = 0;
-    // }
-    //reset_motor();
-    
+    else
+      Serial.println("INVALID: " + String(currAzi - prevAzi));
     //refresh_current();
     //refresh_voltage();
 }
@@ -208,9 +233,9 @@ void rotate(double nani)
     }
     double yeart = abs(nani);
     int pulses = (int) round(yeart / stepSize);
-    Serial.println("pulses: " + String(pulses));
-    Serial.println("yeart: " + String(yeart));
-    Serial.println("stepSize: " + String(stepSize));
+    //Serial.println("pulses: " + String(pulses));
+    //Serial.println("yeart: " + String(yeart));
+    //Serial.println("stepSize: " + String(stepSize));
     if (currDegrees + (dir * pulses * stepSize) > MAX_RANGE)
         pulses = (int) floor((MAX_RANGE - currDegrees) / stepSize);
     
@@ -226,8 +251,8 @@ void rotate(double nani)
         }
         //digitalWrite(stepPin,LOW);
         digitalWrite(sleep, LOW);
-        currDegrees += (dir * pulses * stepSize);
-        Serial.println(String(currDegrees));
+        currDegrees += (dir * pulses * stepSize / GEAR_RATIO);
+        //Serial.println(String(currDegrees));
     }
 }
 
@@ -378,10 +403,13 @@ void refresh_current()
     float countsT = analogRead(currentPinT);
     float voltsC = countsC * vpp;
     float voltsT = countsT * vpp;
-    float currentC = (voltsC - (103.0 * vpp)) / (2 * sensitivity);
+    float currentC = (voltsC - (100.0 * vpp)) / (2 * sensitivity);
     float currentT = (voltsT - (103.0 * vpp)) / (2 * sensitivity);
-    //Serial.println("AMPS: " + String(amps));
-    //Serial.println(counts);
+    //Serial.println("---------------------");
+    //Serial.println("CurrentC: " + String(currentC));
+    //Serial.println("CurrentT: " + String(currentT));
+    //Serial.println(countsC);
+    //Serial.println(countsT);
     delay(500);
 }
 
@@ -393,6 +421,13 @@ void refresh_voltage()
     voutT = (valueT * 5.0) / 1024.0;
     vinC = voutC*4;// / ;/// (voltageR2/(voltageR1+voltageR2));
     vinT = voutT*4;
-    //Serial.println("Volts: " + String(vin));
+    Serial.println("CONTROL,voltage:"+String(vinC));
+    timer1++;
+    if (timer1 == 300)
+      Serial.println("FIN");
+    //Serial.println("---------------------");
+    //Serial.println("VoltsC: " + String(vinC));
+    //Serial.println("VoltsT: " + String(vinT));
+    delay(500);
 }
 
