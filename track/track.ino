@@ -147,7 +147,7 @@ void loop() {
     //else
     //  return;
       
-    if(abs(currAzi - prevAzi) < 1.8){
+    if(abs(currAzi - prevAzi) < 5){
       double motor_diff = (currAzi - prevAzi) + angleLeftover;
       /*delay(500);
       Serial.println("Previous Azimuth: " + String(prevAzi));
@@ -155,12 +155,12 @@ void loop() {
       Serial.println("Motor Diff: " + String(motor_diff));
       Serial.println("Curr Degrees: " + String(currDegrees));
       */
-      Serial.println("C_Valid: " + String(c_valid));
-      if (c_valid && motor_diff > 0.3 && currAzi > 0 && currDegrees < 40.0){
-        angleLeftover = motor_diff - 0.3;
+      //Serial.println("C_Valid: " + String(c_valid));
+      if (c_valid && motor_diff > 0.9 && currAzi > 0 && currDegrees < 40.0){
+        angleLeftover = motor_diff - 0.9;
         Serial.println("Anlge Leftover: " + String(angleLeftover));
-        //rotate(motor_diff * GEAR_RATIO);
-        rotate(180.0);
+        rotate(motor_diff * GEAR_RATIO);
+        //rotate(180.0);
         prevAzi = currAzi;
       }
       else if (currDegrees > 40.0 || currAzi > 205.0){
