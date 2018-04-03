@@ -15,7 +15,7 @@
 //#define TRACK_INTERVAL 1000*60*10
 
 const double stepSize = S1;
-double currDegrees = 0.0;
+double currDegrees = 20.0;
 
 double currAzi;
 double prevAzi;
@@ -24,6 +24,7 @@ double angleLeftover;
 String inputString;         // a string to hold incoming data
 boolean stringComplete;  // whether the string is complete
 String timee, latitude, longitude, date;
+//String concateTime;
 int latDir, longDir;
 boolean gpsValid;
 
@@ -166,6 +167,11 @@ void loop() {
         digitalWrite(sleep, LOW);
       }
       
+      // if(timee.compare("000000") == 0){
+          // Serial.println(timee);
+          // reset_motor();
+          // currDegrees = 0.0;
+      //}
       // if (gpsValid && (motor_diff > 0.12))
       // {
          // rotate(motor_diff); //3.75 seems to be the minimum
@@ -242,7 +248,7 @@ void rotate(double angle)
 
 void reset_motor()
 {
-    rotate(-1 * currDegrees);
+    rotate(-1 * currDegrees * GEAR_RATIO);
 }
 
 void serialEvent1()
@@ -362,6 +368,8 @@ void refresh_sunpos_data(void)
     c_time.dSeconds = timee.substring(4,6).toInt();
     c_location.dLongitude = convert_longitude();
     c_location.dLatitude = convert_latitude();
+    
+    //concateTime = String(c_time.dHours) + String(c_time.dMinutes) + String(c_time.dSeconds);
     
     // Serial.println("Valid: " + String(gpsValid));
     // Serial.println("Month: " + String(c_time.iMonth));

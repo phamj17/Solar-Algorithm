@@ -12,39 +12,42 @@ c_power = []
 c_time = []
 t_power = []
 t_time = []
-style.use('fivethirtyeight')
+#style.use('fivethirtyeight')
 
-t_fig = plt.figure()
-c_fig = plt.figure()
-t_graph = t_fig.add_subplot(1,1,1)
-c_graph = c_fig.add_subplot(1,1,1)
-plt.axis([0, 24, 0, 18])
+#t_fig = plt.figure()
+#c_fig = plt.figure()
+#t_graph = t_fig.add_subplot(1,1,1)
+#c_graph = c_fig.add_subplot(1,1,1)
+#plt.axis([0, 24, 0, 18])
 #plt.show()
 
 def writeToFile(dictList, filename):
-    with open(filename, "wb") as csv_file:
-        writer = csv.writer(csv_file)
-        for key, value in dictList.items():
-            writer.writerow([key, value])
-    #for d in dictList:
-    #    splitDict = dictList.split(
-    #    file.write(json.dumps(d))
-    #    file.write("\n");
-    #file.close()
+    file = open(filename, 'a')
+    for d in dictList:
+        #splitDict = dictList.split()
+        file.write(json.dumps(d))
+        file.write("\n");
     
+def writePowerAndTime(powerList, timeList, filename):
+    with open(filename, 'a') as csvfile:
+        file = csv.writer(csvfile)
+        for power, time in zip(powerList, timeList):
+            temp = [power, '', time]
+            file.writerow(temp)
+
 def test(list):
     for meh in list:
         print(meh)
     print("------------------------")
     
-def animate():
-    global t_time, t_power, c_time, c_power
-    t_graph.clear()
-    c_graph.clear()
-    t_graph.plot(t_time, t_power)
-    c_graph.plot(c_time, c_power)
-    t_graph.draw()
-    c_graph.draw()
+# def animate():
+    # global t_time, t_power, c_time, c_power
+    # t_graph.clear()
+    # c_graph.clear()
+    # t_graph.plot(t_time, t_power)
+    # c_graph.plot(c_time, c_power)
+    # t_graph.draw()
+    # c_graph.draw()
 
 def main():
     global control
@@ -60,8 +63,8 @@ def main():
 
     timer = 0
     flag = 0
-    c_filename = "ControlData_" + datetime.datetime.now().strftime("%y-%m-%d") + ".csv"
-    t_filename = "TilterData_" + datetime.datetime.now().strftime("%y-%m-%d") + ".csv"
+    c_filename = "ControlData_" + datetime.datetime.now().strftime("%y-%m-%d") + ".txt"
+    t_filename = "TilterData_" + datetime.datetime.now().strftime("%y-%m-%d") + ".txt"
  
     while True:
         output = ser.readline().strip()
@@ -113,6 +116,10 @@ def main():
             writeToFile(tilter, t_filename)
             writeToFile(c_time, "cTime.txt")
             writeToFile(c_power, "cPower.txt")
+            writeToFile(t_time, "tTime.txt")
+            writeToFile(t_power, "tPower.txt")
+            writePowerAndTime(c_power, c_time, "c_file.csv")
+            writePowerAndTime(t_power, t_time, "t_file.csv")
             control = []
             tilter = []
             timer = 0
