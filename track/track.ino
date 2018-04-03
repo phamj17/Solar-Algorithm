@@ -15,7 +15,7 @@
 //#define TRACK_INTERVAL 1000*60*10
 
 const double stepSize = S1;
-double currDegrees = 20.0;
+double currDegrees = 0.0;
 
 double currAzi;
 double prevAzi;
@@ -149,23 +149,24 @@ void loop() {
       
     if(abs(currAzi - prevAzi) < 5){
       double motor_diff = (currAzi - prevAzi) + angleLeftover;
-      /*delay(500);
-      Serial.println("Previous Azimuth: " + String(prevAzi));
-      Serial.println("Current Azimuth: " + String(currAzi));
-      Serial.println("Motor Diff: " + String(motor_diff));
-      Serial.println("Curr Degrees: " + String(currDegrees));
-      */
+      //delay(500);
+      //Serial.println("Previous Azimuth: " + String(prevAzi));
+      //Serial.println("Current Azimuth: " + String(currAzi));
+      //Serial.println("Motor Diff: " + String(motor_diff));
+      //Serial.println("Curr Degrees: " + String(currDegrees));
+      
       //Serial.println("gpsValid: " + String(gpsValid));
       if (gpsValid && motor_diff > 0.9 && currAzi > 0 && currDegrees < 40.0){
         angleLeftover = motor_diff - 0.9;
         //Serial.println("Anlge Leftover: " + String(angleLeftover));
+		//digitalWrite(sleep, HIGH);
         rotate(motor_diff * GEAR_RATIO);
         //rotate(180.0);
         prevAzi = currAzi;
       }
-      else if (currDegrees > 40.0 || currAzi > 205.0){
-        digitalWrite(sleep, LOW);
-      }
+      //else if (currDegrees > 40.0 || currAzi > 205.0){
+      //  digitalWrite(sleep, LOW);
+      //}
       
       // if(timee.compare("000000") == 0){
           // Serial.println(timee);
@@ -433,5 +434,5 @@ void serial_output()
                     +String(c_time.dHours)+",minute:"
                     +String(c_time.dMinutes)+",second:"
                     +String(c_time.dSeconds));
-    delay(500);
+    //delay(500);
 }
