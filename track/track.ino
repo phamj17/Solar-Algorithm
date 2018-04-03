@@ -1,5 +1,4 @@
 #include <math.h>
-//#include <elapsedMillis.h>
 #include "sunpos.h"
 
 // motor step resolution (degrees)
@@ -25,8 +24,8 @@ double angleLeftover;
 String inputString;         // a string to hold incoming data
 boolean stringComplete;  // whether the string is complete
 String timee, latitude, longitude, date;
-int lat_dir, long_dir;
-boolean c_valid;
+int latDir, longDir;
+boolean gpsValid;
 
 int timer1, timer2;
 
@@ -49,8 +48,8 @@ float currentC = 0.0;
 float currentT = 0.0;
 
 //voltage sensor
-const int voltagePinC = A2;
-const int voltagePinT = A3;
+const int voltagePinC = A6;
+const int voltagePinT = A7;
 float voutC = 0.0;
 float voutT = 0.0;
 float vinC = 0.0;
@@ -134,7 +133,7 @@ void setup() {
     prevAzi = 0.0;
     angleLeftover = 0.0;
     
-    c_valid = true;
+    gpsValid = true;
     inputString = "";
     stringComplete = false;
 
@@ -155,10 +154,10 @@ void loop() {
       Serial.println("Motor Diff: " + String(motor_diff));
       Serial.println("Curr Degrees: " + String(currDegrees));
       */
-      //Serial.println("C_Valid: " + String(c_valid));
-      if (c_valid && motor_diff > 0.9 && currAzi > 0 && currDegrees < 40.0){
+      //Serial.println("gpsValid: " + String(gpsValid));
+      if (gpsValid && motor_diff > 0.9 && currAzi > 0 && currDegrees < 40.0){
         angleLeftover = motor_diff - 0.9;
-        Serial.println("Anlge Leftover: " + String(angleLeftover));
+        //Serial.println("Anlge Leftover: " + String(angleLeftover));
         rotate(motor_diff * GEAR_RATIO);
         //rotate(180.0);
         prevAzi = currAzi;
@@ -167,7 +166,7 @@ void loop() {
         digitalWrite(sleep, LOW);
       }
       
-      // if (c_valid && (motor_diff > 0.12))
+      // if (gpsValid && (motor_diff > 0.12))
       // {
          // rotate(motor_diff); //3.75 seems to be the minimum
          // Serial.println("we rotatin");
@@ -193,35 +192,20 @@ void loop() {
           // timer = 0;
       // }
       //reset_motor();
-    }
-    else
-      Serial.println("INVALID: " + String(currAzi - prevAzi));
-    //refresh_current();
-    //refresh_voltage();
+    
+    //else
+      //Serial.println("INVALID: " + String(currAzi - prevAzi));
+	}
+	refresh_voltage();
+	refresh_current();
+    serial_output();
 }
 
-/*
-
-WHAT WE NEED:
-1) rotate function                       --- GOTM
-2) reset function                        --- GOTM
-3) cleanup
-
-4) figure out azimuth
-
-5) read current from current sensor
-6) read voltage from panel
-7) power arduino from power supply and adjust driver
-8) figure out gear ratio
-
-9) recheck year, direction data
-*/
-
-void rotate(double nani)
+void rotate(double angle)
 {
     //determine direction of rotation
     int dir;
-    if (nani >= 0)
+    if (angle >= 0)
     {
         digitalWrite(dirPin,HIGH);
         dir = 1;
@@ -231,10 +215,10 @@ void rotate(double nani)
         digitalWrite(dirPin,LOW);
         dir = -1;
     }
-    double yeart = abs(nani);
-    int pulses = (int) round(yeart / stepSize);
+    double theta = abs(angle);
+    int pulses = (int) round(theta / stepSize);
     //Serial.println("pulses: " + String(pulses));
-    //Serial.println("yeart: " + String(yeart));
+    //Serial.println("theta: " + String(theta));
     //Serial.println("stepSize: " + String(stepSize));
     if (currDegrees + (dir * pulses * stepSize) > MAX_RANGE)
         pulses = (int) floor((MAX_RANGE - currDegrees) / stepSize);
@@ -277,10 +261,10 @@ void serialEvent1()
             {
                 refresh_sunpos_data();
                 track();
-                c_valid = true;
+                gpsValid = true;
             }
             else
-                c_valid = false;
+                gpsValid = false;
             inputString = "";
             stringComplete = false;
         }
@@ -315,9 +299,9 @@ boolean parse(String in)
             break;
         case 4: //latitude direction
             if (val.equals("N"))
-                lat_dir = 1;
+                latDir = 1;
             else if (val.equals("S"))
-                lat_dir = -1;
+                latDir = -1;
             else
                 return false;
             break;
@@ -326,9 +310,9 @@ boolean parse(String in)
             break;
         case 6: //longitude direction
             if (val.equals("E"))
-                long_dir = 1;
+                longDir = 1;
             else if (val.equals("W"))
-                long_dir = -1;
+                longDir = -1;
             else
                 return false;
             break;
@@ -352,7 +336,7 @@ double convert_latitude()
     int period;
     period = latitude.indexOf('.', 0);
     if (period)
-        return latitude.toInt() / 100.00000 * lat_dir;
+        return latitude.toInt() / 100.00000 * latDir;
 
     return 0;
 }
@@ -362,7 +346,7 @@ double convert_longitude()
     int period;
     period = longitude.indexOf('.', 0);
     if (period)
-        return longitude.toInt() / 100.00000 * long_dir;
+        return longitude.toInt() / 100.00000 * longDir;
     
     return 0;
 }
@@ -374,14 +358,12 @@ void refresh_sunpos_data(void)
     c_time.iMonth = (date.substring(2,4)).toInt();
     c_time.iDay = (date.substring(0,2)).toInt();
     c_time.dHours = timee.substring(0,2).toInt();// + timezone;
-    //if (c_time.dHours < 0)
-    //    c_time.dHours += 24;
     c_time.dMinutes = timee.substring(2,4).toInt();
     c_time.dSeconds = timee.substring(4,6).toInt();
     c_location.dLongitude = convert_longitude();
     c_location.dLatitude = convert_latitude();
     
-    // Serial.println("Valid: " + String(c_valid));
+    // Serial.println("Valid: " + String(gpsValid));
     // Serial.println("Month: " + String(c_time.iMonth));
     // Serial.println("Day: " + String(c_time.iDay));
     // Serial.println("Year: " + String(c_time.iYear));
@@ -403,14 +385,14 @@ void refresh_current()
     float countsT = analogRead(currentPinT);
     float voltsC = countsC * vpp;
     float voltsT = countsT * vpp;
-    float currentC = (voltsC - (100.0 * vpp)) / (2 * sensitivity);
-    float currentT = (voltsT - (103.0 * vpp)) / (2 * sensitivity);
+    currentC = (voltsC - (103.0 * vpp)) / (2 * sensitivity);
+    currentT = (voltsT - (103.0 * vpp)) / (2 * sensitivity);
     //Serial.println("---------------------");
     //Serial.println("CurrentC: " + String(currentC));
     //Serial.println("CurrentT: " + String(currentT));
     //Serial.println(countsC);
     //Serial.println(countsT);
-    delay(500);
+    //delay(500);
 }
 
 void refresh_voltage()
@@ -419,15 +401,29 @@ void refresh_voltage()
     float valueT = analogRead(voltagePinT);
     voutC = (valueC * 5.0) / 1024.0;
     voutT = (valueT * 5.0) / 1024.0;
-    vinC = voutC*4;// / ;/// (voltageR2/(voltageR1+voltageR2));
-    vinT = voutT*4;
-    Serial.println("CONTROL,voltage:"+String(vinC));
+    vinC = voutC*4.7; ;/// (voltageR2/(voltageR1+voltageR2));
+    vinT = voutT*4.7;
     timer1++;
-    if (timer1 == 300)
-      Serial.println("FIN");
     //Serial.println("---------------------");
     //Serial.println("VoltsC: " + String(vinC));
     //Serial.println("VoltsT: " + String(vinT));
-    delay(500);
+    //delay(500);
 }
 
+void serial_output()
+{
+    Serial.println("CONTROL,valid:"
+                    +String(gpsValid)+",voltage:"
+                    +String(vinC)+",current:"
+                    +String(currentC)+",hour:"
+                    +String(c_time.dHours)+",minute:"
+                    +String(c_time.dMinutes)+",second:"
+                    +String(c_time.dSeconds));
+    Serial.println("TILTER,valid:"
+                    +String(gpsValid)+",voltage:"
+                    +String(currentT)+",hour:"
+                    +String(c_time.dHours)+",minute:"
+                    +String(c_time.dMinutes)+",second:"
+                    +String(c_time.dSeconds));
+    delay(500);
+}
