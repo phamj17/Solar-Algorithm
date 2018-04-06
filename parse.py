@@ -37,10 +37,10 @@ def main():
     tSamples = 0
 
     while True:
-        cTxtFile = "ControlTest_" + datetime.datetime.now().strftime("%y-%m-%d") + ".txt"
-        tTxtFile = "TilterTest_" + datetime.datetime.now().strftime("%y-%m-%d") + ".txt"
-        cCsvFile = "ControlTest_" + datetime.datetime.now().strftime("%y-%m-%d") + ".csv"
-        tCsvFile = "TilterTest_" + datetime.datetime.now().strftime("%y-%m-%d") + ".csv"
+        cTxtFile = "ControlData_" + datetime.datetime.now().strftime("%y-%m-%d") + ".txt"
+        tTxtFile = "TilterData_" + datetime.datetime.now().strftime("%y-%m-%d") + ".txt"
+        cCsvFile = "ControlData_" + datetime.datetime.now().strftime("%y-%m-%d") + ".csv"
+        tCsvFile = "TilterData_" + datetime.datetime.now().strftime("%y-%m-%d") + ".csv"
         
         output = ser.readline().strip()
         outputList = output.split(' ')
