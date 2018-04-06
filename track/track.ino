@@ -12,7 +12,10 @@
 // range of motion of panel
 #define MAX_RANGE 10440.0
 #define GEAR_RATIO 100.0
-//#define TRACK_INTERVAL 1000*60*10
+
+// panel codes
+#define CONTROL 0
+#define TILTER 1
 
 const double stepSize = S1;
 double currDegrees = 0.0;
@@ -53,8 +56,8 @@ const int voltagePinC = A6;
 const int voltagePinT = A7;
 float voutC = 0.0;
 float voutT = 0.0;
-float vinC = 0.0;
-float vinT = 0.0;
+float vinC = 0.0; // final result
+float vinT = 0.0; // final result
 const float voltageR1 = 30000.0;
 const float voltageR2 = 7500.0;
 
@@ -421,18 +424,7 @@ void refresh_voltage()
 
 void serial_output()
 {
-    Serial.println("CONTROL,valid:"
-                    +String(gpsValid)+",voltage:"
-                    +String(vinC)+",current:"
-                    +String(currentC)+",hour:"
-                    +String(c_time.dHours)+",minute:"
-                    +String(c_time.dMinutes)+",second:"
-                    +String(c_time.dSeconds));
-    Serial.println("TILTER,valid:"
-                    +String(gpsValid)+",voltage:"
-                    +String(currentT)+",hour:"
-                    +String(c_time.dHours)+",minute:"
-                    +String(c_time.dMinutes)+",second:"
-                    +String(c_time.dSeconds));
+    Serial.println(String(CONTROL) + " " + String(vinC));
+    Serial.println(String(TILTER) + " " + String(vinT));
     //delay(500);
 }
