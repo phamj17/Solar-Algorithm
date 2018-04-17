@@ -1,4 +1,12 @@
-# C:\Python27\python C:\Users\Nicholas\Desktop\solarAlgorithm\Solar-Algorithm\parse.py
+"""
+    File: parse.py
+    
+    Description: Obtain serial output data from the Arduino to 
+                find the average voltage per minute and export 
+                values to .txt and .csv files
+    
+    Authors: Justin Pham and Nicholas Larson
+"""
 
 import serial, os
 import datetime
@@ -21,9 +29,6 @@ def main():
     tilterList = []
     
     ser = serial.Serial(baudrate = 9600, port = 'COM3')
-
-    timer = 0
-    flag = 0
     
     currHour = int(datetime.datetime.now().strftime("%H"))
     prevHour = currHour
@@ -85,7 +90,6 @@ def main():
                 
                 cAccumulator = 0
                 cSamples = 0
-                flag = 0
         
         nextMin = currMin + 1
         prevHour = currHour

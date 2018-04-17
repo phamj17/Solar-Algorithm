@@ -1,5 +1,19 @@
+/*
+ *  File: track.ino
+ *
+ *  Description: Obtain data from Arduino peripheries, track 
+ *              sun with the SunPos algorithm, and rotate 
+ *              the stepper motor to tilt the solar panel.
+ *
+ *  Authors: Justin Pham and Ian Bingham
+ */
+
 #include <math.h>
 #include "sunpos.h"
+
+// solar panel codes
+#define CONTROL 0
+#define TILTER 1
 
 // motor step resolution (degrees)
 #define S1 1.8
@@ -10,28 +24,26 @@
 #define S32 0.05625
 
 // range of motion of panel
-#define MAX_RANGE 10440.0
+#define MOTOR_RANGE 4000.0
+#define PANEL_RANGE 40.0
 #define GEAR_RATIO 100.0
+#define START_POSITION 160.0
 
-// panel codes
-#define CONTROL 0
-#define TILTER 1
-
+// specify motor step size
 const double stepSize = S1;
-double currDegrees = 0.0;
 
+double currDegrees = 0.0;
 double currAzi;
 double prevAzi;
 double angleLeftover;
 
 String inputString;         // a string to hold incoming data
 boolean stringComplete;  // whether the string is complete
+
+// intermediate GPS values
 String timee, latitude, longitude, date;
-//String concateTime;
 int latDir, longDir;
 boolean gpsValid;
-
-int timer1, timer2;
 
 // motor driver pin definitions
 // note: 1.8 degrees per full step
@@ -43,14 +55,6 @@ const int MS1 = 22;
 const int MS2 = 24;
 const int MS3 = 26;
 
-//current sensor
-const int currentPinC = A0;
-const int currentPinT = A1;
-float vpp = 5.0 / 1024;
-float sensitivity = 0.066;
-float currentC = 0.0;
-float currentT = 0.0;
-
 //voltage sensor
 const int voltagePinC = A6;
 const int voltagePinT = A7;
@@ -58,8 +62,6 @@ float voutC = 0.0;
 float voutT = 0.0;
 float vinC = 0.0; // final result
 float vinT = 0.0; // final result
-const float voltageR1 = 30000.0;
-const float voltageR2 = 7500.0;
 
 //sunpos structures
 cTime c_time;
@@ -72,9 +74,6 @@ void setup() {
     Serial1.begin(9600);
     inputString.reserve(200); // reserve 200 bytes for the inputString:
     
-    timer1 = 0;
-    timer2 = 58;
-    
     // sets motor driver outputs
     pinMode(stepPin, OUTPUT);
     pinMode(dirPin, OUTPUT);
@@ -84,20 +83,9 @@ void setup() {
     digitalWrite(reset, HIGH);
     digitalWrite(sleep, LOW);
 
-    pinMode(currentPinC, INPUT);
-    pinMode(currentPinT, INPUT);
     pinMode(voltagePinC, INPUT);
     pinMode(voltagePinT, INPUT);
     
-    // MS1, MS2, MS3
-    // 000: full step
-    // 100: half step
-    // 010: 1/4 step
-    // 110: 1/8 step
-    // 001: 1/16 step
-    // 101: 1/32 step
-    // 011: 1/32 step
-    // 111: 1/32 step
     pinMode(MS1, OUTPUT);
     pinMode(MS2, OUTPUT);
     pinMode(MS3, OUTPUT);
@@ -140,80 +128,30 @@ void setup() {
     gpsValid = true;
     inputString = "";
     stringComplete = false;
-
 }
 
 void loop() {
-    currAzi = c_suncoordinates.dAzimuth - 160; 
+    currAzi = c_suncoordinates.dAzimuth - START_POSITION;
     if (prevAzi == 0 && currAzi > 0)
-      prevAzi = currAzi;
-    //else
-    //  return;
-      
-    if(abs(currAzi - prevAzi) < 5){
-      double motor_diff = (currAzi - prevAzi) + angleLeftover;
-      //delay(500);
-      //Serial.println("Previous Azimuth: " + String(prevAzi));
-      //Serial.println("Current Azimuth: " + String(currAzi));
-      //Serial.println("Motor Diff: " + String(motor_diff));
-      //Serial.println("Curr Degrees: " + String(currDegrees));
-      
-      //Serial.println("gpsValid: " + String(gpsValid));
-      if (gpsValid && motor_diff > 0.9 && currAzi > 0 && currDegrees < 40.0){
-        angleLeftover = motor_diff - 0.9;
-        //Serial.println("Anlge Leftover: " + String(angleLeftover));
-		//digitalWrite(sleep, HIGH);
-        rotate(motor_diff * GEAR_RATIO);
-        //rotate(180.0);
         prevAzi = currAzi;
-      }
-      //else if (currDegrees > 40.0 || currAzi > 205.0){
-      //  digitalWrite(sleep, LOW);
-      //}
-      
-      // if(timee.compare("000000") == 0){
-          // Serial.println(timee);
-          // reset_motor();
-          // currDegrees = 0.0;
-      //}
-      // if (gpsValid && (motor_diff > 0.12))
-      // {
-         // rotate(motor_diff); //3.75 seems to be the minimum
-         // Serial.println("we rotatin");
-         // prevAzi = currAzi;
-      // }
-      //delay(1000);
-      //if(timer1 < 120){
-        //rotate(90.0);    
-        //timer1++;
-      //}
-      //if(timer1 > 120){
-        //rotate(-90.0); 
-        //timer2--;
-        //if(timer2 == 0)
-          //delay(100000);
-      //}
-      //Serial.println(" --- ROTATIONS: " + String(timer1));
-      // Serial.println("timer: " + String(timer));
-      // Serial.println("currDegrees: " + String(currDegrees));
-      // Serial.println("------------------------");
-      // if (currDegrees >= MAX_RANGE) {
-          // reset_motor();
-          // timer = 0;
-      // }
-      //reset_motor();
-    
-    //else
-      //Serial.println("INVALID: " + String(currAzi - prevAzi));
-	}
-	refresh_voltage();
-	refresh_current();
+
+    if(abs(currAzi - prevAzi) < 5)
+    {
+        double motorDiff = (currAzi - prevAzi) + angleLeftover;
+
+        if (gpsValid && motorDiff > 0.9 && currAzi > 0 && currDegrees < PANEL_RANGE)
+        {
+            angleLeftover = motorDiff - 0.9;
+            rotate(motorDiff * GEAR_RATIO);
+            prevAzi = currAzi;
+        }
+    }
+    refresh_voltage();
     serial_output();
-}
+    }
 
 void rotate(double angle)
 {
-    //determine direction of rotation
     int dir;
     if (angle >= 0)
     {
@@ -227,11 +165,9 @@ void rotate(double angle)
     }
     double theta = abs(angle);
     int pulses = (int) round(theta / stepSize);
-    //Serial.println("pulses: " + String(pulses));
-    //Serial.println("theta: " + String(theta));
-    //Serial.println("stepSize: " + String(stepSize));
-    if (currDegrees + (dir * pulses * stepSize) > MAX_RANGE)
-        pulses = (int) floor((MAX_RANGE - currDegrees) / stepSize);
+    
+    if (currDegrees + (dir * pulses * stepSize) > MOTOR_RANGE)
+        pulses = (int) floor((MOTOR_RANGE - currDegrees) / stepSize);
     
     if (pulses != 0)
     {
@@ -243,16 +179,9 @@ void rotate(double angle)
             digitalWrite(stepPin,LOW);
             delayMicroseconds(1000);
         }
-        //digitalWrite(stepPin,LOW);
         digitalWrite(sleep, LOW);
         currDegrees += (dir * pulses * stepSize / GEAR_RATIO);
-        //Serial.println(String(currDegrees));
     }
-}
-
-void reset_motor()
-{
-    rotate(-1 * currDegrees * GEAR_RATIO);
 }
 
 void serialEvent1()
@@ -266,7 +195,6 @@ void serialEvent1()
 
         if(stringComplete)
         {
-            //Serial.println(inputString);
             if (parse(inputString))
             {
                 refresh_sunpos_data();
@@ -275,6 +203,7 @@ void serialEvent1()
             }
             else
                 gpsValid = false;
+            
             inputString = "";
             stringComplete = false;
         }
@@ -347,7 +276,6 @@ double convert_latitude()
     period = latitude.indexOf('.', 0);
     if (period)
         return latitude.toInt() / 100.00000 * latDir;
-
     return 0;
 }
 
@@ -357,54 +285,24 @@ double convert_longitude()
     period = longitude.indexOf('.', 0);
     if (period)
         return longitude.toInt() / 100.00000 * longDir;
-    
     return 0;
 }
 
 void refresh_sunpos_data(void)
 {
-    double timezone = -7.0;
-    c_time.iYear = ("20" + date.substring(4,6)).toInt();
+    c_time.iYear = ("20" + date.substring(4,6)).toInt(); //assume the 21st century
     c_time.iMonth = (date.substring(2,4)).toInt();
     c_time.iDay = (date.substring(0,2)).toInt();
-    c_time.dHours = timee.substring(0,2).toInt();// + timezone;
+    c_time.dHours = timee.substring(0,2).toInt();
     c_time.dMinutes = timee.substring(2,4).toInt();
     c_time.dSeconds = timee.substring(4,6).toInt();
     c_location.dLongitude = convert_longitude();
     c_location.dLatitude = convert_latitude();
-    
-    //concateTime = String(c_time.dHours) + String(c_time.dMinutes) + String(c_time.dSeconds);
-    
-    // Serial.println("Valid: " + String(gpsValid));
-    // Serial.println("Month: " + String(c_time.iMonth));
-    // Serial.println("Day: " + String(c_time.iDay));
-    // Serial.println("Year: " + String(c_time.iYear));
-    // Serial.println("Hours: " + String(c_time.dHours));
-    // Serial.println("Minutes: " + String(c_time.dMinutes));
-    // Serial.println("Seconds: " + String(c_time.dSeconds));
-    // Serial.println("Longitude: " + String(c_location.dLongitude));
-    // Serial.println("Latitude: " + String(c_location.dLatitude));
 }
 
 void track(void)
 {
     sunpos(c_time,c_location,&c_suncoordinates);
-}
-
-void refresh_current()
-{
-    float countsC = analogRead(currentPinC);
-    float countsT = analogRead(currentPinT);
-    float voltsC = countsC * vpp;
-    float voltsT = countsT * vpp;
-    currentC = (voltsC - (103.0 * vpp)) / (2 * sensitivity);
-    currentT = (voltsT - (103.0 * vpp)) / (2 * sensitivity);
-    //Serial.println("---------------------");
-    //Serial.println("CurrentC: " + String(currentC));
-    //Serial.println("CurrentT: " + String(currentT));
-    //Serial.println(countsC);
-    //Serial.println(countsT);
-    //delay(500);
 }
 
 void refresh_voltage()
@@ -413,18 +311,12 @@ void refresh_voltage()
     float valueT = analogRead(voltagePinT);
     voutC = (valueC * 5.0) / 1024.0;
     voutT = (valueT * 5.0) / 1024.0;
-    vinC = voutC*4.7; ;/// (voltageR2/(voltageR1+voltageR2));
+    vinC = voutC*4.7;
     vinT = voutT*4.7;
-    timer1++;
-    //Serial.println("---------------------");
-    //Serial.println("VoltsC: " + String(vinC));
-    //Serial.println("VoltsT: " + String(vinT));
-    //delay(500);
 }
 
 void serial_output()
 {
     Serial.println(String(CONTROL) + " " + String(vinC));
     Serial.println(String(TILTER) + " " + String(vinT));
-    //delay(500);
 }
